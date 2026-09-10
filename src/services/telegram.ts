@@ -61,31 +61,73 @@ class TelegramService {
       throw new Error('Invalid bot token. Please check your token and try again.');
     }
 
-    const response = await fetch(this.getApiUrl('getChat'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId }),
-    });
-    const data = await response.json();
-    
+    console.log('Attempting to get chat info for:', chatId);
+    console.log('Chat ID type:', typeof chatId);
+
+    // Try multiple approaches to get chat info
+    let data: any = null;
+    let lastError = '';
+
+    // Approach 1: POST with JSON body (standard)
+    try {
+      const response = await fetch(this.getApiUrl('getChat'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId }),
+      });
+      data = await response.json();
+      console.log('POST response:', data);
+    } catch (error: any) {
+      lastError = error.message;
+      console.error('POST approach failed:', error);
+    }
+
+    // Approach 2: GET with query parameter (fallback)
+    if (!data || !data.ok) {
+      try {
+        const url = `${this.getApiUrl('getChat')}?chat_id=${encodeURIComponent(chatId)}`;
+        const response = await fetch(url);
+        data = await response.json();
+        console.log('GET response:', data);
+      } catch (error: any) {
+        lastError = error.message;
+        console.error('GET approach failed:', error);
+      }
+    }
+
+    // If both approaches failed
+    if (!data) {
+      throw new Error(`Failed to connect to Telegram API: ${lastError}`);
+    }
+
     if (!data.ok) {
-      const errorMsg = data.description || 'Failed to get chat info';
+      const errorMsg = data.description || 'Unknown error';
+      const errorCode = data.error_code || 'unknown';
       
-      // Provide helpful error messages
-      if (errorMsg.includes('chat not found')) {
-        throw new Error('Channel not found. Make sure: 1) The bot is added as admin to the channel, 2) You entered the correct username/ID, 3) For private channels, use the numeric ID (starts with -100)');
-      } else if (errorMsg.includes('bot is not a member')) {
-        throw new Error('Bot is not a member of this channel. Please add the bot as an administrator first.');
-      } else if (errorMsg.includes('PEER_ID_INVALID')) {
-        throw new Error('Invalid channel ID. For public channels, use the username (without @). For private channels, use the numeric ID.');
+      console.error('Telegram API error:', { errorCode, errorMsg, chatId });
+      
+      // Provide detailed error messages based on error code
+      if (errorCode === 400) {
+        if (errorMsg.includes('chat not found')) {
+          throw new Error(`Channel not found. The bot cannot see this channel. Please verify:\n1. Bot is added as administrator\n2. You entered the correct identifier\n3. For public channels: use username without @\n4. For private channels: use numeric ID (starts with -100)\n\nDebug: You entered "${chatId}"`);
+        } else if (errorMsg.includes('Bad Request')) {
+          throw new Error(`Invalid request. Please check the channel identifier format. You entered: "${chatId}"`);
+        }
+      } else if (errorCode === 401) {
+        throw new Error('Unauthorized. Your bot token may be invalid or expired.');
+      } else if (errorCode === 403) {
+        throw new Error('Forbidden. The bot does not have permission to access this channel. Make sure the bot is an administrator.');
+      } else if (errorCode === 404) {
+        throw new Error(`Channel not found. The identifier "${chatId}" is not valid or the channel doesn't exist.`);
       }
       
-      throw new Error(errorMsg);
+      throw new Error(`Telegram API Error (${errorCode}): ${errorMsg}`);
     }
     
     const chat = data.result;
+    console.log('Successfully got chat info:', chat);
     
-    // Verify the bot has admin rights
+    // Verify the bot has admin rights (optional check)
     if (chat.type === 'channel' || chat.type === 'supergroup') {
       try {
         const admins = await this.getChatAdministrators(chat.id);
@@ -93,11 +135,9 @@ class TelegramService {
         const isBotAdmin = admins.some((admin: any) => admin.user.id === botInfo.id);
         
         if (!isBotAdmin && admins.length > 0) {
-          // Only warn if we got admins but bot isn't in the list
-          console.warn('Bot may not be an administrator in this channel. Some features may not work.');
+          console.warn('Bot may not be an administrator in this channel.');
         }
       } catch (adminError: any) {
-        // If we can't check admins, continue anyway
         console.warn('Could not verify admin status:', adminError.message);
       }
     }
@@ -110,7 +150,7 @@ class TelegramService {
     };
   }
 
-  async sendMessage(chatId: number, text: string): Promise<any> {
+  async sendMessage(chatId: string | number, text: string): Promise<any> {
     const response = await fetch(this.getApiUrl('sendMessage'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -125,7 +165,7 @@ class TelegramService {
   }
 
   async sendDocument(
-    chatId: number,
+    chatId: string | number,
     file: File,
     caption: string,
     onProgress?: (progress: number) => void
@@ -253,7 +293,7 @@ class TelegramService {
     return data.result;
   }
 
-  async deleteMessage(chatId: number, messageId: number): Promise<boolean> {
+  async deleteMessage(chatId: string | number, messageId: number): Promise<boolean> {
     const response = await fetch(this.getApiUrl('deleteMessage'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
