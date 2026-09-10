@@ -1,9 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Upload, FolderPlus, Grid3X3, List, Search, MoreVertical,
-  Download, Trash2, Home, ChevronRight, Plus, Folder,
-  FileText, Image, Film, Music, Archive, Code, File, Eye
+  Download, Trash2, Home, ChevronRight, Plus, Folder, Eye
 } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { useAppStore } from '../store';
@@ -21,6 +20,7 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
     files, setFiles, currentPath, setCurrentPath, selectedChannel,
     viewMode, setViewMode, selectedFiles, toggleFileSelection, clearSelection,
     addTransfer, updateTransfer, addFile, removeFile, settings,
+    setActiveTab,
   } = useAppStore();
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,6 +28,8 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
   const [newFolderName, setNewFolderName] = useState('');
   const [contextMenu, setContextMenu] = useState<{ file: FileItem; x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get files in current path
   const currentFiles = files.filter(f => {
@@ -40,11 +42,22 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
   const folders = getVirtualFolders(files, currentPath);
   const displayFiles = [...folders, ...currentFiles.filter(f => f.type === 'file')];
 
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    if (!selectedChannel) return;
-    setIsDragging(false);
+  // Handle file upload
+  const handleFileUpload = useCallback(async (fileList: FileList | File[]) => {
+    if (!selectedChannel) {
+      setUploadError('No channel selected');
+      return;
+    }
+
+    const files = Array.from(fileList);
+    if (files.length === 0) return;
+
+    setUploadError('');
     
-    for (const file of acceptedFiles) {
+    // Auto-switch to transfers tab
+    setActiveTab('transfers');
+    
+    for (const file of files) {
       const transferId = generateId();
       addTransfer({
         id: transferId,
@@ -58,22 +71,25 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
       });
 
       try {
+        const metadata = {
+          name: file.name,
+          path: currentPath,
+          size: file.size,
+          mimeType: file.type || 'application/octet-stream',
+          extension: file.name.split('.').pop() || '',
+          createdAt: Date.now(),
+        };
+
+        const caption = `__TCLOUD_V1__${JSON.stringify(metadata)}`;
+        
         const result = await telegramService.sendDocument(
           selectedChannel.id,
           file,
-          `__TCLOUD_V1__${JSON.stringify({
-            name: file.name,
-            path: currentPath,
-            size: file.size,
-            mimeType: file.type || 'application/octet-stream',
-            extension: file.name.split('.').pop() || '',
-            createdAt: Date.now(),
-          })}`,
+          caption,
           (progress) => {
             updateTransfer(transferId, {
               progress,
               transferred: Math.round(file.size * progress / 100),
-              speed: file.size * progress / 100 / Math.max(1, Date.now() / 1000),
             });
           }
         );
@@ -95,17 +111,31 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
         addFile(newFile);
         updateTransfer(transferId, { status: 'completed', progress: 100 });
       } catch (error: any) {
-        updateTransfer(transferId, { status: 'error', error: error.message });
+        console.error('Upload error:', error);
+        updateTransfer(transferId, { status: 'error', error: error.message || 'Upload failed' });
       }
     }
   }, [selectedChannel, currentPath]);
 
-  // IMPORTANT: noClick prevents the file picker from opening on click
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    setIsDragging(false);
+    handleFileUpload(acceptedFiles);
+  }, [handleFileUpload]);
+
+  // IMPORTANT: noClick prevents file picker from opening on any click
   const { getRootProps, getInputProps, open } = useDropzone({ 
     onDrop,
     noClick: true,
     noKeyboard: true,
   });
+
+  // Handle file input change (only triggered by the Upload button)
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleFileUpload(e.target.files);
+      e.target.value = ''; // Reset input
+    }
+  };
 
   const navigateToFolder = (folderName: string) => {
     const newPath = currentPath === '/' ? `/${folderName}` : `${currentPath}/${folderName}`;
@@ -125,26 +155,30 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
     if (!newFolderName.trim() || !selectedChannel) return;
     
     try {
-      const caption = `__TCLOUD_V1__${JSON.stringify({
-        name: newFolderName,
+      const metadata = {
+        name: newFolderName.trim(),
         path: currentPath,
         size: 0,
         mimeType: 'folder',
         extension: '',
         createdAt: Date.now(),
         isFolder: true,
-      })}`;
+      };
+
+      const caption = `__TCLOUD_V1__${JSON.stringify(metadata)}`;
       
-      await telegramService.sendMessage(selectedChannel.id, caption);
+      // Send as a text message (folders are just metadata markers)
+      const result = await telegramService.sendMessage(selectedChannel.id, caption);
       
       const folder: FileItem = {
-        id: `folder_${newFolderName}_${Date.now()}`,
-        name: newFolderName,
+        id: `folder_${result.message_id}`,
+        name: newFolderName.trim(),
         path: currentPath,
         size: 0,
         type: 'folder',
         mimeType: 'folder',
         extension: '',
+        telegramMessageId: result.message_id,
         createdAt: Date.now(),
         modifiedAt: Date.now(),
       };
@@ -152,8 +186,9 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
       addFile(folder);
       setNewFolderName('');
       setShowNewFolder(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create folder:', error);
+      setUploadError(`Failed to create folder: ${error.message}`);
     }
   };
 
@@ -171,6 +206,8 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
 
   const handleDownload = async (file: FileItem) => {
     if (!file.telegramFileId) return;
+    
+    setActiveTab('transfers');
     
     const transferId = generateId();
     addTransfer({
@@ -216,8 +253,14 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
 
   return (
     <div className="flex-1 flex flex-col h-full relative">
-      {/* Hidden file input - only triggered by the Upload button */}
-      <input {...getInputProps()} />
+      {/* Hidden file input - ONLY triggered by the Upload button */}
+      <input 
+        ref={fileInputRef}
+        type="file" 
+        multiple 
+        onChange={handleFileInputChange}
+        className="hidden"
+      />
       
       {/* Drag overlay */}
       <AnimatePresence>
@@ -226,7 +269,7 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 bg-gradient-to-br from-blue-600/20 to-purple-600/20 backdrop-blur-md flex items-center justify-center border-2 border-dashed border-blue-400/50 rounded-2xl m-4"
+            className="absolute inset-0 z-50 bg-gradient-to-br from-blue-600/30 to-purple-600/30 backdrop-blur-lg flex items-center justify-center border-2 border-dashed border-blue-400 rounded-2xl m-4"
           >
             <div className="text-center">
               <motion.div
@@ -235,31 +278,31 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
               >
                 <Upload className="w-16 h-16 text-blue-400 mx-auto mb-4" />
               </motion.div>
-              <p className="text-white font-semibold text-lg">Drop files to upload</p>
-              <p className="text-blue-300/70 text-sm mt-1">Files will be uploaded to {currentPath}</p>
+              <p className="text-white font-bold text-xl">Drop files to upload</p>
+              <p className="text-blue-300 text-sm mt-1">Files will be uploaded to {currentPath}</p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-3 px-6 py-3 border-b border-white/[0.06] bg-white/[0.02]">
+      <div className="flex items-center gap-3 px-6 py-4 border-b border-white/10 bg-white/[0.02]">
         {/* Breadcrumbs */}
         <div className="flex items-center gap-1 flex-1 min-w-0">
           {currentPath !== '/' && (
             <button
               onClick={navigateUp}
-              className="p-2 text-slate-400 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all"
+              className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all"
             >
               <Home className="w-4 h-4" />
             </button>
           )}
           {breadcrumbs.map((crumb, i) => (
             <div key={i} className="flex items-center gap-1">
-              {i > 0 && <ChevronRight className="w-3 h-3 text-slate-600" />}
+              {i > 0 && <ChevronRight className="w-3 h-3 text-gray-600" />}
               <button
                 onClick={() => i === 0 ? setCurrentPath('/') : setCurrentPath('/' + breadcrumbs.slice(1, i + 1).join('/'))}
-                className="text-sm text-slate-400 hover:text-white transition-colors px-1 py-0.5 rounded hover:bg-white/[0.04]"
+                className="text-sm text-gray-400 hover:text-white transition-colors px-2 py-1 rounded-lg hover:bg-white/5"
               >
                 {crumb}
               </button>
@@ -270,13 +313,13 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
         {/* Actions */}
         <div className="flex items-center gap-2">
           <div className="relative hidden sm:block">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search..."
-              className="pl-9 pr-4 py-2 bg-white/[0.04] border border-white/[0.06] rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:border-blue-500/40 focus:bg-white/[0.06] w-44 transition-all"
+              className="pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 w-44 transition-all"
             />
           </div>
 
@@ -284,27 +327,27 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowNewFolder(true)}
-            className="p-2.5 text-slate-400 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all"
+            className="p-2.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all"
             title="New Folder"
           >
-            <FolderPlus className="w-[18px] h-[18px]" />
+            <FolderPlus className="w-5 h-5" />
           </motion.button>
 
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-            className="p-2.5 text-slate-400 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all"
+            className="p-2.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all"
           >
-            {viewMode === 'grid' ? <List className="w-[18px] h-[18px]" /> : <Grid3X3 className="w-[18px] h-[18px]" />}
+            {viewMode === 'grid' ? <List className="w-5 h-5" /> : <Grid3X3 className="w-5 h-5" />}
           </motion.button>
 
-          {/* Upload Button - This is the ONLY way to open file picker */}
+          {/* Upload Button - ONLY this opens the file picker */}
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={open}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white text-sm font-medium rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 px-5 py-2.5 btn-primary text-white text-sm font-bold rounded-xl"
           >
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Upload</span>
@@ -319,10 +362,10 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden border-b border-white/[0.06]"
+            className="overflow-hidden border-b border-white/10"
           >
             <div className="flex items-center gap-2 px-6 py-3">
-              <FolderPlus className="w-4 h-4 text-blue-400" />
+              <FolderPlus className="w-5 h-5 text-blue-400" />
               <input
                 autoFocus
                 type="text"
@@ -333,12 +376,12 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
                   if (e.key === 'Escape') setShowNewFolder(false);
                 }}
                 placeholder="Folder name..."
-                className="flex-1 px-4 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:border-blue-500/40"
+                className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
               />
-              <button onClick={handleCreateFolder} className="px-4 py-2 bg-blue-500 text-white text-sm rounded-xl hover:bg-blue-400 transition-colors font-medium">
+              <button onClick={handleCreateFolder} className="px-5 py-2.5 btn-primary text-white text-sm rounded-xl font-bold">
                 Create
               </button>
-              <button onClick={() => setShowNewFolder(false)} className="px-4 py-2 text-slate-400 text-sm hover:text-white transition-colors">
+              <button onClick={() => setShowNewFolder(false)} className="px-5 py-2.5 text-gray-400 text-sm hover:text-white transition-colors">
                 Cancel
               </button>
             </div>
@@ -346,14 +389,27 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
         )}
       </AnimatePresence>
 
-      {/* File Area - with drag handlers */}
+      {/* Error message */}
+      <AnimatePresence>
+        {uploadError && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mx-6 mt-3 card-danger rounded-xl px-4 py-3"
+          >
+            <p className="text-red-300 text-sm">{uploadError}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* File Area */}
       <div 
         className="flex-1 overflow-y-auto p-6"
         onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={(e) => { 
           e.preventDefault();
-          // Only set false if leaving the container
           if (!e.currentTarget.contains(e.relatedTarget as Node)) {
             setIsDragging(false);
           }
@@ -367,27 +423,27 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
             className="flex flex-col items-center justify-center h-full text-center"
           >
             <div className="relative mb-6">
-              <div className="w-24 h-24 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-3xl flex items-center justify-center border border-white/[0.06]">
-                <Upload className="w-10 h-10 text-slate-500" />
+              <div className="w-28 h-28 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-3xl flex items-center justify-center border border-white/10">
+                <Upload className="w-12 h-12 text-blue-400" />
               </div>
-              <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-blue-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
-                <Plus className="w-4 h-4 text-white" />
+              <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-xl">
+                <Plus className="w-5 h-5 text-white" />
               </div>
             </div>
-            <h3 className="text-white font-semibold text-lg mb-1">
+            <h3 className="text-white font-bold text-xl mb-2">
               {searchQuery ? 'No results found' : 'Start uploading files'}
             </h3>
-            <p className="text-slate-500 text-sm max-w-xs">
+            <p className="text-gray-400 text-sm max-w-xs mb-6">
               {searchQuery ? 'Try a different search term' : 'Drag & drop files here or click the Upload button'}
             </p>
             {!searchQuery && (
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={open}
-                className="mt-6 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all font-medium flex items-center gap-2"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-8 py-3.5 btn-primary text-white rounded-xl font-bold flex items-center gap-2"
               >
-                <Upload className="w-4 h-4" /> Upload Files
+                <Upload className="w-5 h-5" /> Upload Files
               </motion.button>
             )}
           </motion.div>
@@ -412,9 +468,8 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
           </div>
         ) : (
           <div className="space-y-1">
-            {/* List header */}
-            <div className="flex items-center gap-3 px-4 py-2 text-xs text-slate-500 font-medium uppercase tracking-wider">
-              <span className="w-9" />
+            <div className="flex items-center gap-3 px-4 py-2 text-xs text-gray-500 font-semibold uppercase tracking-wider">
+              <span className="w-10" />
               <span className="flex-1">Name</span>
               <span className="hidden sm:block w-20">Size</span>
               <span className="hidden md:block w-32">Modified</span>
@@ -450,12 +505,12 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: -5 }}
               style={{ top: contextMenu.y, left: contextMenu.x }}
-              className="fixed z-50 bg-slate-800/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl py-2 min-w-[180px] overflow-hidden"
+              className="fixed z-50 glass rounded-2xl shadow-2xl py-2 min-w-[180px] overflow-hidden"
             >
               {contextMenu.file.type === 'file' && (
                 <button
                   onClick={() => { handleDownload(contextMenu.file); setContextMenu(null); }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-200 hover:bg-white/[0.06] transition-all"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-all"
                 >
                   <Download className="w-4 h-4 text-blue-400" /> Download
                 </button>
@@ -463,15 +518,15 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
               {contextMenu.file.type === 'file' && (isImageFile(contextMenu.file.extension || '') || isVideoFile(contextMenu.file.extension || '')) && (
                 <button
                   onClick={() => { onFilePreview(contextMenu.file); setContextMenu(null); }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-200 hover:bg-white/[0.06] transition-all"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-all"
                 >
                   <Eye className="w-4 h-4 text-purple-400" /> Preview
                 </button>
               )}
-              <div className="my-1 border-t border-white/[0.06]" />
+              <div className="my-1 border-t border-white/10" />
               <button
                 onClick={() => { handleDelete(contextMenu.file); setContextMenu(null); }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-all"
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 transition-all"
               >
                 <Trash2 className="w-4 h-4" /> Delete
               </button>
@@ -547,7 +602,7 @@ function FileGridItem({ file, index, isSelected, onSelect, onOpen, onContextMenu
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.02, 0.3) }}
-      whileHover={{ y: -2 }}
+      whileHover={{ y: -3, scale: 1.02 }}
       onClick={(e) => {
         if (e.ctrlKey || e.metaKey) {
           e.preventDefault();
@@ -560,24 +615,24 @@ function FileGridItem({ file, index, isSelected, onSelect, onOpen, onContextMenu
       onContextMenu={onContextMenu}
       className={`relative group p-4 rounded-2xl cursor-pointer transition-all duration-200 ${
         isSelected
-          ? 'bg-blue-500/10 border border-blue-500/30 shadow-lg shadow-blue-500/5'
-          : 'bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] hover:border-white/[0.1] hover:shadow-lg hover:shadow-black/20'
+          ? 'card-primary shadow-lg'
+          : 'bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 hover:shadow-lg'
       }`}
     >
       <div className="flex flex-col items-center text-center">
-        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 transition-transform group-hover:scale-105 ${
+        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110 ${
           file.type === 'folder' 
-            ? 'bg-gradient-to-br from-amber-500/15 to-orange-500/10 border border-amber-500/20' 
-            : 'bg-gradient-to-br from-white/[0.04] to-white/[0.02] border border-white/[0.06]'
+            ? 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30' 
+            : 'bg-white/5 border border-white/10'
         }`}>
           <Icon className={`w-7 h-7 ${file.type === 'folder' ? 'text-amber-400' : iconColor}`} />
         </div>
-        <p className="text-xs text-white font-medium truncate w-full leading-tight">{file.name}</p>
+        <p className="text-xs text-white font-semibold truncate w-full leading-tight">{file.name}</p>
         {file.type === 'file' && (
-          <p className="text-[10px] text-slate-500 mt-1">{formatFileSize(file.size)}</p>
+          <p className="text-[10px] text-gray-400 mt-1">{formatFileSize(file.size)}</p>
         )}
         {file.type === 'folder' && (
-          <p className="text-[10px] text-slate-500 mt-1">Folder</p>
+          <p className="text-[10px] text-gray-400 mt-1">Folder</p>
         )}
       </div>
 
@@ -586,14 +641,14 @@ function FileGridItem({ file, index, isSelected, onSelect, onOpen, onContextMenu
         {file.type === 'file' && (
           <button
             onClick={(e) => { e.stopPropagation(); onDownload(); }}
-            className="p-1.5 bg-slate-800/90 backdrop-blur-sm rounded-lg hover:bg-blue-500/20 transition-colors border border-white/[0.06]"
+            className="p-1.5 bg-white/10 backdrop-blur-sm rounded-lg hover:bg-blue-500/20 transition-colors border border-white/10"
           >
             <Download className="w-3 h-3 text-white" />
           </button>
         )}
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="p-1.5 bg-slate-800/90 backdrop-blur-sm rounded-lg hover:bg-red-500/20 transition-colors border border-white/[0.06]"
+          className="p-1.5 bg-white/10 backdrop-blur-sm rounded-lg hover:bg-red-500/20 transition-colors border border-white/10"
         >
           <Trash2 className="w-3 h-3 text-white" />
         </button>
@@ -633,48 +688,48 @@ function FileListItem({ file, index, isSelected, onSelect, onOpen, onContextMenu
       onContextMenu={onContextMenu}
       className={`group flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all duration-150 ${
         isSelected
-          ? 'bg-blue-500/10 border border-blue-500/30'
-          : 'hover:bg-white/[0.03] border border-transparent hover:border-white/[0.06]'
+          ? 'card-primary'
+          : 'hover:bg-white/5 border border-transparent hover:border-white/10'
       }`}
     >
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
         file.type === 'folder' 
-          ? 'bg-gradient-to-br from-amber-500/15 to-orange-500/10 border border-amber-500/20' 
-          : 'bg-white/[0.04] border border-white/[0.06]'
+          ? 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30' 
+          : 'bg-white/5 border border-white/10'
       }`}>
         <Icon className={`w-5 h-5 ${file.type === 'folder' ? 'text-amber-400' : iconColor}`} />
       </div>
       
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-white font-medium truncate">{file.name}</p>
-        <p className="text-[11px] text-slate-500 mt-0.5">
+        <p className="text-sm text-white font-semibold truncate">{file.name}</p>
+        <p className="text-[11px] text-gray-400 mt-0.5">
           {file.type === 'folder' ? 'Folder' : formatFileSize(file.size)}
         </p>
       </div>
 
-      <span className="text-xs text-slate-500 hidden sm:block w-20 text-right">{formatFileSize(file.size)}</span>
-      <span className="text-xs text-slate-500 hidden md:block w-32 text-right">{formatDate(file.modifiedAt)}</span>
+      <span className="text-xs text-gray-400 hidden sm:block w-20 text-right">{formatFileSize(file.size)}</span>
+      <span className="text-xs text-gray-400 hidden md:block w-32 text-right">{formatDate(file.modifiedAt)}</span>
 
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity w-24 justify-end">
         {file.type === 'file' && (
           <button
             onClick={(e) => { e.stopPropagation(); onDownload(); }}
-            className="p-2 hover:bg-white/[0.06] rounded-lg transition-colors"
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
           >
-            <Download className="w-4 h-4 text-slate-400 hover:text-blue-400" />
+            <Download className="w-4 h-4 text-gray-400 hover:text-blue-400" />
           </button>
         )}
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
           className="p-2 hover:bg-red-500/10 rounded-lg transition-colors"
         >
-          <Trash2 className="w-4 h-4 text-slate-400 hover:text-red-400" />
+          <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-400" />
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onContextMenu(e); }}
-          className="p-2 hover:bg-white/[0.06] rounded-lg transition-colors"
+          className="p-2 hover:bg-white/10 rounded-lg transition-colors"
         >
-          <MoreVertical className="w-4 h-4 text-slate-400" />
+          <MoreVertical className="w-4 h-4 text-gray-400" />
         </button>
       </div>
     </motion.div>

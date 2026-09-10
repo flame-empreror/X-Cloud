@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Cloud, Key, LogIn, ChevronRight, Shield, Sparkles, ArrowRight, Check } from 'lucide-react';
+import { Cloud, Key, LogIn, ChevronRight, Shield, Sparkles, ArrowRight, Check, Zap, HardDrive, Lock } from 'lucide-react';
 import { useAppStore } from '../store';
 import telegramService from '../services/telegram';
 
@@ -63,19 +63,39 @@ export default function LoginScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Premium background effects */}
-      <div className="absolute inset-0">
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-blue-600/[0.07] rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-600/[0.05] rounded-full blur-[120px]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-cyan-600/[0.03] rounded-full blur-[150px]" />
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{
+      background: 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)'
+    }}>
+      {/* Animated background orbs */}
+      <div className="absolute inset-0 overflow-hidden">
+        <motion.div
+          animate={{
+            x: [0, 100, 0],
+            y: [0, -50, 0],
+            scale: [1, 1.2, 1],
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-1/4 left-1/4 w-96 h-96 bg-orb-1 rounded-full blur-3xl opacity-50"
+        />
+        <motion.div
+          animate={{
+            x: [0, -80, 0],
+            y: [0, 80, 0],
+            scale: [1, 1.3, 1],
+          }}
+          transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orb-2 rounded-full blur-3xl opacity-40"
+        />
+        <motion.div
+          animate={{
+            x: [0, 60, 0],
+            y: [0, -60, 0],
+            scale: [1, 1.1, 1],
+          }}
+          transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-orb-3 rounded-full blur-3xl opacity-30"
+        />
       </div>
-
-      {/* Grid pattern overlay */}
-      <div className="absolute inset-0 opacity-[0.02]" style={{
-        backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-        backgroundSize: '60px 60px'
-      }} />
 
       <AnimatePresence mode="wait">
         {step === 'welcome' && (
@@ -88,20 +108,20 @@ export default function LoginScreen() {
             className="relative z-10 max-w-lg w-full"
           >
             <div className="relative">
-              {/* Glow behind card */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-cyan-500/20 rounded-[2rem] blur-xl opacity-50" />
+              {/* Glow effect */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-3xl blur-xl opacity-50 animate-glow" />
               
-              <div className="relative bg-[#111118]/80 backdrop-blur-2xl border border-white/[0.08] rounded-[2rem] p-10 shadow-2xl">
+              <div className="relative glass rounded-3xl p-10">
                 {/* Logo */}
                 <motion.div
                   initial={{ scale: 0, rotate: -180 }}
                   animate={{ scale: 1, rotate: 0 }}
                   transition={{ type: 'spring', delay: 0.2, stiffness: 200 }}
-                  className="w-20 h-20 mx-auto mb-8 relative"
+                  className="w-24 h-24 mx-auto mb-8 relative"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-2xl rotate-6 opacity-20" />
-                  <div className="relative w-full h-full bg-gradient-to-br from-blue-500 to-cyan-400 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-500/25">
-                    <Cloud className="w-10 h-10 text-white" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl rotate-6 opacity-30 blur-xl" />
+                  <div className="relative w-full h-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-3xl flex items-center justify-center shadow-2xl">
+                    <Cloud className="w-12 h-12 text-white" />
                   </div>
                 </motion.div>
 
@@ -111,47 +131,51 @@ export default function LoginScreen() {
                   transition={{ delay: 0.3 }}
                   className="text-center mb-10"
                 >
-                  <h1 className="text-4xl font-bold text-white mb-3 tracking-tight">
+                  <h1 className="text-5xl font-bold mb-3 gradient-text">
                     TeleCloud
                   </h1>
-                  <p className="text-slate-400 text-base leading-relaxed max-w-sm mx-auto">
-                    Unlimited cloud storage powered by Telegram. Free forever.
+                  <p className="text-gray-300 text-lg">
+                    Unlimited cloud storage powered by Telegram
                   </p>
                 </motion.div>
 
                 {/* Features */}
-                <div className="grid grid-cols-2 gap-3 mb-10">
+                <div className="grid grid-cols-2 gap-4 mb-10">
                   {[
-                    { icon: '∞', text: 'Unlimited Storage', color: 'from-blue-500/10 to-blue-600/5' },
-                    { icon: '⚡', text: 'Lightning Fast', color: 'from-amber-500/10 to-amber-600/5' },
-                    { icon: '🔒', text: 'Private & Secure', color: 'from-green-500/10 to-green-600/5' },
-                    { icon: '💎', text: '100% Free', color: 'from-purple-500/10 to-purple-600/5' },
-                  ].map((item, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.4 + i * 0.08 }}
-                      className={`flex items-center gap-3 p-3 rounded-xl bg-gradient-to-br ${item.color} border border-white/[0.04]`}
-                    >
-                      <span className="text-lg">{item.icon}</span>
-                      <span className="text-slate-300 text-sm font-medium">{item.text}</span>
-                    </motion.div>
-                  ))}
+                    { icon: HardDrive, text: 'Unlimited Storage', color: 'from-blue-500 to-cyan-500' },
+                    { icon: Zap, text: 'Lightning Fast', color: 'from-yellow-500 to-orange-500' },
+                    { icon: Lock, text: 'Private & Secure', color: 'from-green-500 to-emerald-500' },
+                    { icon: Sparkles, text: '100% Free', color: 'from-purple-500 to-pink-500' },
+                  ].map((item, i) => {
+                    const Icon = item.icon;
+                    return (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 + i * 0.1 }}
+                        className="card-primary rounded-2xl p-4 flex items-center gap-3"
+                      >
+                        <div className={`w-10 h-10 bg-gradient-to-br ${item.color} rounded-xl flex items-center justify-center shadow-lg`}>
+                          <Icon className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-white font-semibold text-sm">{item.text}</span>
+                      </motion.div>
+                    );
+                  })}
                 </div>
 
                 <motion.button
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.7 }}
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setStep('token')}
-                  className="w-full group relative py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-2xl shadow-xl shadow-blue-500/20 hover:shadow-blue-500/30 transition-all duration-300 flex items-center justify-center gap-2 overflow-hidden"
+                  className="w-full group relative py-5 btn-primary text-white font-bold text-lg rounded-2xl flex items-center justify-center gap-3 overflow-hidden"
                 >
-                  <span className="absolute inset-0 bg-gradient-to-r from-blue-400 to-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <span className="relative flex items-center gap-2">
-                    Get Started <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  <span className="relative flex items-center gap-3">
+                    Get Started <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
                   </span>
                 </motion.button>
 
@@ -159,10 +183,10 @@ export default function LoginScreen() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.8 }}
-                  className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-500"
+                  className="mt-6 flex items-center justify-center gap-2 text-sm text-gray-400"
                 >
-                  <Shield className="w-3.5 h-3.5" />
-                  <span>Your data stays on your Telegram channel. Nothing is stored elsewhere.</span>
+                  <Shield className="w-4 h-4 text-green-400" />
+                  <span>Your data stays on your Telegram channel</span>
                 </motion.div>
               </div>
             </div>
@@ -179,24 +203,24 @@ export default function LoginScreen() {
             className="relative z-10 max-w-lg w-full"
           >
             <div className="relative">
-              <div className="absolute -inset-1 bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-red-500/20 rounded-[2rem] blur-xl opacity-50" />
+              <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 rounded-3xl blur-xl opacity-40" />
               
-              <div className="relative bg-[#111118]/80 backdrop-blur-2xl border border-white/[0.08] rounded-[2rem] p-10 shadow-2xl">
-                <div className="w-14 h-14 mx-auto mb-6 bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/20">
-                  <Key className="w-7 h-7 text-white" />
+              <div className="relative glass rounded-3xl p-10">
+                <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl flex items-center justify-center shadow-2xl">
+                  <Key className="w-8 h-8 text-white" />
                 </div>
 
-                <h2 className="text-2xl font-bold text-white text-center mb-2">
+                <h2 className="text-3xl font-bold text-white text-center mb-2">
                   Connect Your Bot
                 </h2>
-                <p className="text-slate-400 text-center text-sm mb-8">
-                  Enter your Telegram Bot token to get started
+                <p className="text-gray-300 text-center mb-8">
+                  Enter your Telegram Bot token
                 </p>
 
                 {/* Steps */}
-                <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5 mb-6">
-                  <p className="text-slate-300 text-sm font-medium mb-3">Quick Setup:</p>
-                  <div className="space-y-2.5">
+                <div className="card-primary rounded-2xl p-5 mb-6">
+                  <p className="text-white font-semibold mb-3">Quick Setup:</p>
+                  <div className="space-y-3">
                     {[
                       'Open Telegram → Search @BotFather',
                       'Send /newbot → Follow instructions',
@@ -204,49 +228,47 @@ export default function LoginScreen() {
                       'Copy the token → Paste below',
                     ].map((text, i) => (
                       <div key={i} className="flex items-center gap-3">
-                        <div className="w-5 h-5 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
-                          <span className="text-blue-400 text-[10px] font-bold">{i + 1}</span>
+                        <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg">
+                          <span className="text-white text-xs font-bold">{i + 1}</span>
                         </div>
-                        <span className="text-slate-400 text-sm">{text}</span>
+                        <span className="text-gray-300 text-sm">{text}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={botToken}
-                      onChange={(e) => { setBotToken(e.target.value); setError(''); }}
-                      placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v..."
-                      className="w-full px-5 py-4 bg-white/[0.03] border border-white/[0.08] rounded-2xl text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/40 focus:bg-white/[0.05] transition-all font-mono text-sm"
-                      onKeyDown={(e) => e.key === 'Enter' && handleTokenSubmit()}
-                    />
-                  </div>
+                  <input
+                    type="text"
+                    value={botToken}
+                    onChange={(e) => { setBotToken(e.target.value); setError(''); }}
+                    placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v..."
+                    className="w-full px-5 py-4 glass rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-mono text-sm"
+                    onKeyDown={(e) => e.key === 'Enter' && handleTokenSubmit()}
+                  />
 
                   <AnimatePresence>
                     {error && (
-                      <motion.p
-                        initial={{ opacity: 0, y: -5 }}
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -5 }}
-                        className="text-red-400 text-sm bg-red-500/5 border border-red-500/10 rounded-xl px-4 py-2"
+                        exit={{ opacity: 0, y: -10 }}
+                        className="card-danger rounded-xl px-4 py-3"
                       >
-                        {error}
-                      </motion.p>
+                        <p className="text-red-300 text-sm">{error}</p>
+                      </motion.div>
                     )}
                   </AnimatePresence>
 
                   <motion.button
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={handleTokenSubmit}
                     disabled={loading}
-                    className="w-full py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-2xl shadow-lg shadow-blue-500/20 disabled:opacity-50 flex items-center justify-center gap-2 hover:shadow-blue-500/30 transition-all"
+                    className="w-full py-4 btn-primary text-white font-bold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     {loading ? (
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
                       <>
                         <LogIn className="w-5 h-5" /> Connect Bot
@@ -256,7 +278,7 @@ export default function LoginScreen() {
 
                   <button
                     onClick={() => { setStep('welcome'); setError(''); }}
-                    className="w-full py-2 text-slate-500 hover:text-slate-300 text-sm transition-colors"
+                    className="w-full py-2 text-gray-400 hover:text-white text-sm transition-colors"
                   >
                     ← Back
                   </button>
@@ -276,56 +298,55 @@ export default function LoginScreen() {
             className="relative z-10 max-w-lg w-full"
           >
             <div className="relative">
-              <div className="absolute -inset-1 bg-gradient-to-r from-green-500/20 via-emerald-500/20 to-teal-500/20 rounded-[2rem] blur-xl opacity-50" />
+              <div className="absolute -inset-1 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 rounded-3xl blur-xl opacity-40" />
               
-              <div className="relative bg-[#111118]/80 backdrop-blur-2xl border border-white/[0.08] rounded-[2rem] p-10 shadow-2xl">
-                <div className="w-14 h-14 mx-auto mb-6 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-green-500/20">
-                  <Sparkles className="w-7 h-7 text-white" />
+              <div className="relative glass rounded-3xl p-10">
+                <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center shadow-2xl">
+                  <Sparkles className="w-8 h-8 text-white" />
                 </div>
 
-                <h2 className="text-2xl font-bold text-white text-center mb-2">
+                <h2 className="text-3xl font-bold text-white text-center mb-2">
                   Select Storage Channel
                 </h2>
-                <p className="text-slate-400 text-center text-sm mb-8">
-                  Enter your channel's username or ID to use as storage
+                <p className="text-gray-300 text-center mb-8">
+                  Enter your channel's username or ID
                 </p>
 
-                {/* Channel Input */}
                 <div className="space-y-4">
                   <div className="relative">
-                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 text-lg">@</span>
+                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 text-xl">@</span>
                     <input
                       type="text"
                       value={channelInput}
                       onChange={(e) => { setChannelInput(e.target.value); setError(''); }}
                       placeholder="channel_username or -1001234567890"
-                      className="w-full pl-10 pr-5 py-4 bg-white/[0.03] border border-white/[0.08] rounded-2xl text-white placeholder-slate-600 focus:outline-none focus:border-green-500/40 focus:bg-white/[0.05] transition-all text-sm"
+                      className="w-full pl-12 pr-5 py-4 glass rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all text-sm"
                       onKeyDown={(e) => e.key === 'Enter' && handleChannelConnect()}
                     />
                   </div>
 
                   <AnimatePresence>
                     {error && (
-                      <motion.p
-                        initial={{ opacity: 0, y: -5 }}
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -5 }}
-                        className="text-red-400 text-sm bg-red-500/5 border border-red-500/10 rounded-xl px-4 py-2"
+                        exit={{ opacity: 0, y: -10 }}
+                        className="card-danger rounded-xl px-4 py-3"
                       >
-                        {error}
-                      </motion.p>
+                        <p className="text-red-300 text-sm">{error}</p>
+                      </motion.div>
                     )}
                   </AnimatePresence>
 
                   <motion.button
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={handleChannelConnect}
                     disabled={loading}
-                    className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-2xl shadow-lg shadow-green-500/20 disabled:opacity-50 flex items-center justify-center gap-2 hover:shadow-green-500/30 transition-all"
+                    className="w-full py-4 btn-success text-white font-bold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     {loading ? (
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
                       <>
                         <Check className="w-5 h-5" /> Connect Channel
@@ -335,17 +356,16 @@ export default function LoginScreen() {
 
                   <button
                     onClick={() => { setStep('token'); setError(''); }}
-                    className="w-full py-2 text-slate-500 hover:text-slate-300 text-sm transition-colors"
+                    className="w-full py-2 text-gray-400 hover:text-white text-sm transition-colors"
                   >
                     ← Back
                   </button>
                 </div>
 
-                {/* Help text */}
-                <div className="mt-6 p-4 bg-white/[0.02] border border-white/[0.04] rounded-xl">
-                  <p className="text-slate-500 text-xs leading-relaxed">
-                    <strong className="text-slate-400">Tip:</strong> You can find your channel's public link by going to Channel Info → Channel Type. 
-                    The username is what appears after t.me/ in the link. For private channels, use the channel ID (starts with -100).
+                <div className="mt-6 card-primary rounded-xl p-4">
+                  <p className="text-gray-300 text-xs leading-relaxed">
+                    <strong className="text-blue-400">💡 Tip:</strong> You can find your channel's public link by going to Channel Info → Channel Type. 
+                    The username is what appears after t.me/ in the link.
                   </p>
                 </div>
               </div>
