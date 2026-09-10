@@ -4,6 +4,7 @@ import { Menu } from 'lucide-react';
 import { useAppStore } from './store';
 import telegramService from './services/telegram';
 import { fileSystemService } from './services/filesystem';
+import { StorageService } from './services/storage';
 import LoginScreen from './components/LoginScreen';
 import Sidebar from './components/Sidebar';
 import FileManager from './components/FileManager';
@@ -24,35 +25,16 @@ function App() {
     }
   }, [botToken, isAuthenticated]);
 
-  // Scan group messages on startup to reconstruct file structure
+  // Load files from localStorage on startup
   useEffect(() => {
-    const scanGroup = async () => {
-      if (!isAuthenticated || !selectedChannel || files.length > 0) return;
-      
-      console.log('[App] Scanning group messages to reconstruct file structure...');
-      
-      try {
-        const messages = await telegramService.scanGroupMessages(selectedChannel.id);
-        const parsedFiles: FileItem[] = [];
-        
-        for (const message of messages) {
-          const fileItem = fileSystemService.parseMessage(message);
-          if (fileItem) {
-            parsedFiles.push(fileItem);
-          }
-        }
-        
-        // Build complete file tree with virtual folders
-        const fileTree = fileSystemService.buildFileTree(parsedFiles);
-        
-        console.log('[App] Reconstructed', fileTree.length, 'files/folders');
-        setFiles(fileTree);
-      } catch (error) {
-        console.error('[App] Failed to scan group:', error);
+    if (isAuthenticated && selectedChannel && files.length === 0) {
+      console.log('[App] Loading files from localStorage...');
+      const savedFiles = StorageService.loadFiles();
+      if (savedFiles.length > 0) {
+        console.log('[App] Loaded', savedFiles.length, 'files from localStorage');
+        setFiles(savedFiles);
       }
-    };
-    
-    scanGroup();
+    }
   }, [isAuthenticated, selectedChannel]);
 
   const handleTabChange = (tab: string) => {

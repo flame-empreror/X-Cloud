@@ -257,9 +257,10 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
     setIsRefreshing(true);
     setUploadError('');
     
-    console.log('[FileManager] Refreshing file list from group...');
+    console.log('[FileManager] Refreshing file list...');
     
     try {
+      // Try to get new updates from Telegram
       const messages = await telegramService.scanGroupMessages(selectedChannel.id);
       const parsedFiles: FileItem[] = [];
       
@@ -270,11 +271,20 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
         }
       }
       
-      // Build complete file tree with virtual folders
-      const fileTree = fileSystemService.buildFileTree(parsedFiles);
+      if (parsedFiles.length > 0) {
+        // Merge with existing files
+        const existingIds = new Set(files.map(f => f.id));
+        const newFiles = parsedFiles.filter(f => !existingIds.has(f.id));
+        
+        if (newFiles.length > 0) {
+          const allFiles = [...files, ...newFiles];
+          const fileTree = fileSystemService.buildFileTree(allFiles);
+          console.log('[FileManager] Added', newFiles.length, 'new files from Telegram');
+          setFiles(fileTree);
+        }
+      }
       
-      console.log('[FileManager] Refreshed:', fileTree.length, 'files/folders');
-      setFiles(fileTree);
+      console.log('[FileManager] Refresh complete:', files.length, 'files/folders');
     } catch (error: any) {
       console.error('[FileManager] Refresh failed:', error);
       setUploadError('Failed to refresh: ' + error.message);
