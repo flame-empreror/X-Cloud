@@ -67,7 +67,7 @@ export default function LoginScreen() {
         cleanInput = cleanInput.substring(1);
       }
       
-      console.log('[Login] Attempting to connect to channel:', cleanInput);
+      console.log('[Login] Attempting to connect to chat:', cleanInput);
       console.log('[Login] Bot token is set:', !!storedBotToken);
       
       // Make sure bot token is set on the service
@@ -79,13 +79,13 @@ export default function LoginScreen() {
       let channel;
       try {
         channel = await telegramService.getChatInfo(cleanInput);
-        console.log('[Login] Successfully got channel info:', channel);
+        console.log('[Login] Successfully got chat info:', channel);
       } catch (chatError: any) {
         console.log('[Login] getChat failed:', chatError.message);
         console.log('[Login] Trying fallback: send test message...');
         
         // If getChat fails, try sending a test message
-        // This works even when bot can post but can't read channel info
+        // This works even when bot can post but can't read chat info
         try {
           const testMessage = await telegramService.sendMessage(
             cleanInput,
@@ -94,7 +94,7 @@ export default function LoginScreen() {
           
           console.log('[Login] Test message sent successfully:', testMessage);
           
-          // Extract channel info from the message response
+          // Extract chat info from the message response
           channel = {
             id: testMessage.chat.id,
             title: testMessage.chat.title || cleanInput,
@@ -115,19 +115,24 @@ export default function LoginScreen() {
           console.error('[Login] sendMessage error:', sendError.message);
           
           // Show the most helpful error message
-          if (chatError.message.includes('Channel not found')) {
-            throw new Error(`Cannot connect to channel "${cleanInput}".\n\nThe bot cannot see this channel. Please verify:\n• Bot is added as administrator\n• Bot has "Post Messages" permission\n• Channel identifier is correct\n\nFor public channels: use username (e.g., "mychannel")\nFor private channels: use numeric ID (e.g., "-1001234567890")`);
+          const errorMsg = chatError.message || sendError.message;
+          
+          if (errorMsg.toLowerCase().includes('chat not found') || errorMsg.toLowerCase().includes('not found')) {
+            throw new Error(`Cannot connect to chat "${cleanInput}".\n\nIMPORTANT: The bot must be ADDED AS A MEMBER first!\n\nSteps to fix:\n1. Open your chat/channel in Telegram\n2. Click "Add Members" or "Add People"\n3. Search for your bot's username\n4. Add the bot as a member\n5. THEN make it admin (if not already)\n\nNote: Your chat ID is "${cleanInput}" which appears to be a group (not a channel). This is fine - the app works with both!`);
+          } else if (errorMsg.toLowerCase().includes('forbidden') || errorMsg.toLowerCase().includes('not a member')) {
+            throw new Error(`Bot is not a member of this chat.\n\nAdd the bot as a member first:\n1. Open your chat in Telegram\n2. Click "Add Members"\n3. Search for your bot\n4. Add it as a member\n5. Then try connecting again`);
           }
-          throw chatError;
+          
+          throw new Error(`Connection failed: ${errorMsg}`);
         }
       }
       
-      console.log('[Login] Channel connected successfully:', channel);
+      console.log('[Login] Chat connected successfully:', channel);
       setSelectedChannel(channel);
       setAuthenticated(true);
     } catch (err: any) {
       console.error('[Login] Connection failed:', err);
-      setError(err.message || 'Could not connect to channel. Please check the username/ID and ensure the bot is admin.');
+      setError(err.message || 'Could not connect to chat. Please check the username/ID and ensure the bot is added as a member.');
     } finally {
       setLoading(false);
     }
@@ -377,10 +382,10 @@ export default function LoginScreen() {
                 </div>
 
                 <h2 className="text-3xl font-bold text-white text-center mb-2">
-                  Select Storage Channel
+                  Select Storage Chat
                 </h2>
                 <p className="text-gray-300 text-center mb-6">
-                  Enter your channel's username or ID
+                  Enter your channel or group username or ID
                 </p>
                 
                 {/* Bot Connection Status */}
@@ -401,7 +406,7 @@ export default function LoginScreen() {
                       type="text"
                       value={channelInput}
                       onChange={(e) => { setChannelInput(e.target.value); setError(''); }}
-                      placeholder="channel_username or -1001234567890"
+                      placeholder="username or chat ID (e.g., -4435359229)"
                       className="w-full pl-12 pr-5 py-4 glass rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all text-sm"
                       onKeyDown={(e) => e.key === 'Enter' && handleChannelConnect()}
                     />
@@ -431,7 +436,7 @@ export default function LoginScreen() {
                       <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
                       <>
-                        <Check className="w-5 h-5" /> Connect Channel
+                        <Check className="w-5 h-5" /> Connect Chat
                       </>
                     )}
                   </motion.button>
@@ -447,24 +452,29 @@ export default function LoginScreen() {
               <div className="mt-6 space-y-3">
                 <div className="card-primary rounded-xl p-4">
                   <p className="text-gray-300 text-xs leading-relaxed mb-2">
-                    <strong className="text-blue-400">💡 How to find your channel:</strong>
+                    <strong className="text-blue-400">💡 How to connect:</strong>
                   </p>
                   <ul className="text-gray-400 text-xs space-y-1.5 ml-4 list-disc">
-                    <li><strong className="text-gray-300">Public channel:</strong> Use the username (without @) from your channel link</li>
-                    <li><strong className="text-gray-300">Private channel:</strong> Use the numeric ID (starts with -100)</li>
-                    <li><strong className="text-gray-300">Bot must be admin:</strong> Add your bot as administrator with "Post Messages" permission</li>
+                    <li><strong className="text-gray-300">Public chat:</strong> Use the username (without @)</li>
+                    <li><strong className="text-gray-300">Private chat:</strong> Use the numeric ID from Telegram Web URL</li>
+                    <li><strong className="text-gray-300">Works with:</strong> Channels, groups, and supergroups</li>
                   </ul>
                 </div>
                 
                 <div className="card-warning rounded-xl p-4">
-                  <p className="text-gray-300 text-xs leading-relaxed">
-                    <strong className="text-amber-400">⚠️ Common issues:</strong>
+                  <p className="text-gray-300 text-xs leading-relaxed mb-2">
+                    <strong className="text-amber-400">⚠️ IMPORTANT - Bot must be added as member:</strong>
                   </p>
-                  <ul className="text-gray-400 text-xs space-y-1.5 ml-4 list-disc mt-2">
-                    <li>Bot not added as admin to the channel</li>
-                    <li>Wrong username or ID format</li>
-                    <li>Bot token is incorrect or expired</li>
-                  </ul>
+                  <ol className="text-gray-400 text-xs space-y-1.5 ml-4 list-decimal">
+                    <li>Open your chat/channel in Telegram</li>
+                    <li>Click "Add Members" or "Add People"</li>
+                    <li>Search for your bot's username</li>
+                    <li><strong className="text-gray-300">Add the bot as a member first</strong></li>
+                    <li>Then make it admin (if not already)</li>
+                  </ol>
+                  <p className="text-amber-300 text-xs mt-2">
+                    Note: Bot must be a member BEFORE it can be admin!
+                  </p>
                 </div>
               </div>              </div>
             </div>

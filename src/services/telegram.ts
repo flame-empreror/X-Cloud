@@ -62,15 +62,37 @@ class TelegramService {
     console.log('[Telegram] Getting chat info for:', chatId);
     console.log('[Telegram] Bot token:', this.botToken.substring(0, 10) + '...');
 
-    // Use GET request with query parameter (most reliable method)
-    const url = `https://api.telegram.org/bot${this.botToken}/getChat?chat_id=${encodeURIComponent(chatId)}`;
-    
-    console.log('[Telegram] Request URL:', url);
-    
-    const response = await fetch(url);
-    const data = await response.json();
-    
-    console.log('[Telegram] Response:', data);
+    // Try GET request first
+    let data: any = null;
+    try {
+      const url = `https://api.telegram.org/bot${this.botToken}/getChat?chat_id=${encodeURIComponent(chatId)}`;
+      console.log('[Telegram] Request URL:', url);
+      
+      const response = await fetch(url);
+      data = await response.json();
+      console.log('[Telegram] GET Response:', data);
+    } catch (error) {
+      console.error('[Telegram] GET request failed:', error);
+    }
+
+    // If GET fails, try POST
+    if (!data || !data.ok) {
+      try {
+        const response = await fetch(`https://api.telegram.org/bot${this.botToken}/getChat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId }),
+        });
+        data = await response.json();
+        console.log('[Telegram] POST Response:', data);
+      } catch (error) {
+        console.error('[Telegram] POST request failed:', error);
+      }
+    }
+
+    if (!data) {
+      throw new Error('Failed to connect to Telegram API. Check your internet connection.');
+    }
 
     if (!data.ok) {
       const errorMsg = data.description || 'Unknown error';
@@ -80,16 +102,16 @@ class TelegramService {
       
       // Provide clear error messages
       if (errorMsg.toLowerCase().includes('chat not found')) {
-        throw new Error(`Channel not found. The bot cannot access this channel.\n\nPlease verify:\n• Bot is added as administrator to the channel\n• You entered the correct identifier\n• For public channels: use username (e.g., "mychannel")\n• For private channels: use numeric ID (e.g., "-1001234567890")\n\nYou entered: "${chatId}"`);
+        throw new Error(`Chat not found. The bot cannot see this chat.\n\nIMPORTANT: The bot must be ADDED AS A MEMBER first, then made admin.\n\nSteps to fix:\n1. Open your chat/channel in Telegram\n2. Click "Add Members"\n3. Search for your bot's username\n4. Add the bot as a member\n5. THEN make it admin\n\nYou entered: "${chatId}"`);
       } else if (errorMsg.toLowerCase().includes('unauthorized')) {
         throw new Error('Invalid bot token. Please check your token from @BotFather.');
       } else if (errorMsg.toLowerCase().includes('forbidden') || errorMsg.toLowerCase().includes('bot is not a member')) {
-        throw new Error('Bot does not have access to this channel. Make sure the bot is added as an administrator with "Post Messages" permission.');
+        throw new Error('Bot is not a member of this chat. Add the bot as a member first, then make it admin.');
       } else if (errorMsg.toLowerCase().includes('bad request')) {
-        throw new Error(`Invalid channel identifier: "${chatId}". Please check the format.`);
+        throw new Error(`Invalid chat identifier: "${chatId}". Please check the format.`);
       }
       
-      throw new Error(`Telegram error: ${errorMsg}`);
+      throw new Error(`Telegram error (${errorCode}): ${errorMsg}`);
     }
     
     const chat = data.result;
@@ -97,7 +119,7 @@ class TelegramService {
     
     return {
       id: chat.id,
-      title: chat.title || chat.username || 'Unknown Channel',
+      title: chat.title || chat.username || 'Unknown Chat',
       username: chat.username,
       type: chat.type,
     };
