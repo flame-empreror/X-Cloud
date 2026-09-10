@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Download, ZoomIn, ZoomOut, RotateCw, ChevronLeft, ChevronRight, Volume2, VolumeX, Maximize, Play, Pause } from 'lucide-react';
+import { X, Download, ZoomIn, ZoomOut, RotateCw, ChevronLeft, ChevronRight, Volume2 } from 'lucide-react';
 import { FileItem } from '../types';
 import { isImageFile, isVideoFile, isAudioFile, formatFileSize } from '../utils/fileUtils';
 import { useAppStore } from '../store';
@@ -18,23 +18,22 @@ export default function MediaViewer({ file, onClose, files, onNavigate }: MediaV
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const { selectedChannel, addTransfer, updateTransfer } = useAppStore();
+  const { addTransfer, updateTransfer } = useAppStore();
 
   useEffect(() => {
     if (file && file.telegramFileId) {
       loadMedia(file);
     }
     return () => {
-      if (mediaUrl) URL.revokeObjectURL(mediaUrl);
+      if (mediaUrl && mediaUrl.startsWith('blob:')) URL.revokeObjectURL(mediaUrl);
     };
-  }, [file]);
+  }, [file?.id]);
 
   const loadMedia = async (fileItem: FileItem) => {
     if (!fileItem.telegramFileId) return;
     setLoading(true);
+    setZoom(1);
+    setRotation(0);
     
     try {
       const fileInfo = await telegramService.getFile(fileItem.telegramFileId);
@@ -73,7 +72,9 @@ export default function MediaViewer({ file, onClose, files, onNavigate }: MediaV
       const a = document.createElement('a');
       a.href = url;
       a.download = file.name;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
       updateTransfer(transferId, { status: 'completed', progress: 100 });
     } catch (error: any) {
@@ -112,34 +113,36 @@ export default function MediaViewer({ file, onClose, files, onNavigate }: MediaV
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col"
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-2xl flex flex-col"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
-            <div className="flex items-center gap-3">
-              <h3 className="text-white font-medium truncate max-w-md">{file.name}</h3>
-              <span className="text-slate-500 text-sm">{formatFileSize(file.size)}</span>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] bg-black/30">
+            <div className="flex items-center gap-4">
+              <h3 className="text-white font-medium truncate max-w-sm">{file.name}</h3>
+              <span className="text-slate-500 text-sm hidden sm:block">{formatFileSize(file.size)}</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               {isImageFile(file.extension || '') && (
                 <>
-                  <button onClick={() => setZoom(z => Math.min(z + 0.25, 3))} className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all">
-                    <ZoomIn className="w-5 h-5" />
-                  </button>
-                  <button onClick={() => setZoom(z => Math.max(z - 0.25, 0.5))} className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all">
-                    <ZoomOut className="w-5 h-5" />
-                  </button>
-                  <button onClick={() => setRotation(r => r + 90)} className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all">
-                    <RotateCw className="w-5 h-5" />
-                  </button>
+                  <ToolButton onClick={() => setZoom(z => Math.min(z + 0.25, 3))} title="Zoom In">
+                    <ZoomIn className="w-4 h-4" />
+                  </ToolButton>
+                  <ToolButton onClick={() => setZoom(z => Math.max(z - 0.25, 0.5))} title="Zoom Out">
+                    <ZoomOut className="w-4 h-4" />
+                  </ToolButton>
+                  <ToolButton onClick={() => setRotation(r => r + 90)} title="Rotate">
+                    <RotateCw className="w-4 h-4" />
+                  </ToolButton>
                 </>
               )}
-              <button onClick={handleDownload} className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all">
-                <Download className="w-5 h-5" />
-              </button>
-              <button onClick={onClose} className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all">
-                <X className="w-5 h-5" />
-              </button>
+              <ToolButton onClick={handleDownload} title="Download">
+                <Download className="w-4 h-4" />
+              </ToolButton>
+              <div className="w-px h-6 bg-white/[0.06] mx-1" />
+              <ToolButton onClick={onClose} title="Close">
+                <X className="w-4 h-4" />
+              </ToolButton>
             </div>
           </div>
 
@@ -147,38 +150,39 @@ export default function MediaViewer({ file, onClose, files, onNavigate }: MediaV
           <div className="flex-1 flex items-center justify-center relative overflow-hidden">
             {loading ? (
               <div className="flex flex-col items-center gap-4">
-                <div className="w-12 h-12 border-3 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-                <p className="text-slate-400">Loading media...</p>
+                <div className="w-12 h-12 border-[3px] border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+                <p className="text-slate-400 text-sm">Loading media...</p>
               </div>
             ) : (
               <>
                 {/* Navigation Arrows */}
                 <button
                   onClick={navigatePrev}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/5 hover:bg-white/10 rounded-full text-white transition-all z-10"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/[0.05] hover:bg-white/[0.1] backdrop-blur-sm rounded-full text-white transition-all z-10 border border-white/[0.06]"
                 >
-                  <ChevronLeft className="w-6 h-6" />
+                  <ChevronLeft className="w-5 h-5" />
                 </button>
                 <button
                   onClick={navigateNext}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/5 hover:bg-white/10 rounded-full text-white transition-all z-10"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/[0.05] hover:bg-white/[0.1] backdrop-blur-sm rounded-full text-white transition-all z-10 border border-white/[0.06]"
                 >
-                  <ChevronRight className="w-6 h-6" />
+                  <ChevronRight className="w-5 h-5" />
                 </button>
 
                 {/* Image */}
                 {isImageFile(file.extension || '') && mediaUrl && (
                   <motion.img
                     key={file.id}
-                    initial={{ opacity: 0, scale: 0.9 }}
+                    initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
                     src={mediaUrl}
                     alt={file.name}
                     style={{
                       transform: `scale(${zoom}) rotate(${rotation}deg)`,
                       transition: 'transform 0.3s ease',
                     }}
-                    className="max-w-full max-h-full object-contain"
+                    className="max-w-[90%] max-h-[85vh] object-contain rounded-lg"
                   />
                 )}
 
@@ -186,15 +190,13 @@ export default function MediaViewer({ file, onClose, files, onNavigate }: MediaV
                 {isVideoFile(file.extension || '') && mediaUrl && (
                   <motion.video
                     key={file.id}
-                    ref={videoRef}
-                    initial={{ opacity: 0, scale: 0.9 }}
+                    initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
                     src={mediaUrl}
                     controls
                     autoPlay
-                    className="max-w-full max-h-full"
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
+                    className="max-w-[90%] max-h-[85vh] rounded-lg"
                   />
                 )}
 
@@ -204,12 +206,15 @@ export default function MediaViewer({ file, onClose, files, onNavigate }: MediaV
                     key={file.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex flex-col items-center gap-6"
+                    className="flex flex-col items-center gap-8"
                   >
-                    <div className="w-40 h-40 bg-gradient-to-br from-green-500 to-emerald-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-green-500/20">
-                      <Volume2 className="w-16 h-16 text-white" />
+                    <div className="w-48 h-48 bg-gradient-to-br from-green-500 to-emerald-600 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-green-500/20">
+                      <Volume2 className="w-20 h-20 text-white/90" />
                     </div>
-                    <p className="text-white text-lg font-medium">{file.name}</p>
+                    <div className="text-center">
+                      <p className="text-white text-lg font-medium">{file.name}</p>
+                      <p className="text-slate-500 text-sm mt-1">{formatFileSize(file.size)}</p>
+                    </div>
                     <audio src={mediaUrl} controls autoPlay className="w-80" />
                   </motion.div>
                 )}
@@ -220,7 +225,7 @@ export default function MediaViewer({ file, onClose, files, onNavigate }: MediaV
                     <p className="text-slate-400 mb-4">Preview not available for this file type</p>
                     <button
                       onClick={handleDownload}
-                      className="px-6 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+                      className="px-6 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-400 transition-colors font-medium"
                     >
                       Download to view
                     </button>
@@ -232,5 +237,17 @@ export default function MediaViewer({ file, onClose, files, onNavigate }: MediaV
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+function ToolButton({ children, onClick, title }: { children: React.ReactNode; onClick: () => void; title: string }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className="p-2.5 text-slate-400 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all"
+    >
+      {children}
+    </button>
   );
 }

@@ -42,27 +42,28 @@ class TelegramService {
   }
 
   async getUserChannels(userId: number): Promise<TelegramChannel[]> {
-    // Get chats where bot is admin
-    const updates = await this.getUpdates();
-    const channels: TelegramChannel[] = [];
-    const seen = new Set<number>();
+    // Telegram Bot API doesn't have a direct method to list all chats
+    // We'll return empty and rely on manual channel input
+    // In a real implementation, you'd store channel IDs when bot joins
+    return [];
+  }
 
-    for (const update of updates) {
-      const chat = update.message?.chat || update.channel_post?.chat;
-      if (chat && (chat.type === 'channel' || chat.type === 'supergroup')) {
-        if (!seen.has(chat.id)) {
-          seen.add(chat.id);
-          channels.push({
-            id: chat.id,
-            title: chat.title,
-            username: chat.username,
-            type: chat.type,
-          });
-        }
-      }
-    }
-
-    return channels;
+  async getChatInfo(chatId: string | number): Promise<TelegramChannel> {
+    const response = await fetch(this.getApiUrl('getChat'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId }),
+    });
+    const data = await response.json();
+    if (!data.ok) throw new Error(data.description || 'Failed to get chat info');
+    
+    const chat = data.result;
+    return {
+      id: chat.id,
+      title: chat.title || chat.username || 'Unknown',
+      username: chat.username,
+      type: chat.type,
+    };
   }
 
   async sendMessage(chatId: number, text: string): Promise<any> {

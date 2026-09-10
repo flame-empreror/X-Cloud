@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Cloud, Key, LogIn, Info, ChevronRight, Shield } from 'lucide-react';
+import { Cloud, Key, LogIn, ChevronRight, Shield, Sparkles, ArrowRight, Check } from 'lucide-react';
 import { useAppStore } from '../store';
 import telegramService from '../services/telegram';
 
@@ -9,9 +9,9 @@ export default function LoginScreen() {
   const [botToken, setBotToken] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [channels, setChannels] = useState<any[]>([]);
+  const [channelInput, setChannelInput] = useState('');
   
-  const { setBotToken: storeSetBotToken, setSelectedChannel, setAuthenticated, setUser, setChannels: storeSetChannels } = useAppStore();
+  const { setBotToken: storeSetBotToken, setSelectedChannel, setAuthenticated, setUser } = useAppStore();
 
   const handleTokenSubmit = async () => {
     if (!botToken.trim()) {
@@ -26,28 +26,15 @@ export default function LoginScreen() {
       telegramService.setBotToken(botToken.trim());
       const botInfo = await telegramService.getMe();
       
-      // Store the token
       storeSetBotToken(botToken.trim());
       
-      // Set a mock user from bot info
       setUser({
         id: botInfo.id,
         first_name: botInfo.first_name || 'Bot User',
         username: botInfo.username,
       });
 
-      // Try to get channels
-      const userChannels = await telegramService.getUserChannels(botInfo.id);
-      
-      if (userChannels.length > 0) {
-        setChannels(userChannels);
-        storeSetChannels(userChannels);
-        setStep('channels');
-      } else {
-        // Even without channels, proceed - user can manually enter channel info
-        setChannels([]);
-        setStep('channels');
-      }
+      setStep('channels');
     } catch (err: any) {
       setError(err.message || 'Invalid bot token. Please check and try again.');
     } finally {
@@ -55,91 +42,128 @@ export default function LoginScreen() {
     }
   };
 
-  const handleChannelSelect = (channel: any) => {
-    setSelectedChannel(channel);
-    setAuthenticated(true);
-  };
+  const handleChannelConnect = async () => {
+    if (!channelInput.trim()) {
+      setError('Please enter a channel username or ID');
+      return;
+    }
 
-  const handleManualChannel = () => {
-    const channelInput = prompt('Enter your channel username (without @) or channel ID:');
-    if (channelInput) {
-      const channel = {
-        id: isNaN(Number(channelInput)) ? 0 : Number(channelInput),
-        title: channelInput,
-        username: channelInput.replace('@', ''),
-        type: 'channel' as const,
-      };
-      handleChannelSelect(channel);
+    setLoading(true);
+    setError('');
+
+    try {
+      const channel = await telegramService.getChatInfo(channelInput.replace('@', ''));
+      setSelectedChannel(channel);
+      setAuthenticated(true);
+    } catch (err: any) {
+      setError('Could not connect to channel. Make sure the bot is admin and you entered the correct username/ID.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
-      {/* Background animation */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl animate-pulse delay-500" />
+    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Premium background effects */}
+      <div className="absolute inset-0">
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-blue-600/[0.07] rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-600/[0.05] rounded-full blur-[120px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-cyan-600/[0.03] rounded-full blur-[150px]" />
       </div>
+
+      {/* Grid pattern overlay */}
+      <div className="absolute inset-0 opacity-[0.02]" style={{
+        backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+        backgroundSize: '60px 60px'
+      }} />
 
       <AnimatePresence mode="wait">
         {step === 'welcome' && (
           <motion.div
             key="welcome"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="relative z-10 max-w-md w-full"
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -30, scale: 0.95 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="relative z-10 max-w-lg w-full"
           >
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', delay: 0.2 }}
-                className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25"
-              >
-                <Cloud className="w-10 h-10 text-white" />
-              </motion.div>
+            <div className="relative">
+              {/* Glow behind card */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-cyan-500/20 rounded-[2rem] blur-xl opacity-50" />
+              
+              <div className="relative bg-[#111118]/80 backdrop-blur-2xl border border-white/[0.08] rounded-[2rem] p-10 shadow-2xl">
+                {/* Logo */}
+                <motion.div
+                  initial={{ scale: 0, rotate: -180 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: 'spring', delay: 0.2, stiffness: 200 }}
+                  className="w-20 h-20 mx-auto mb-8 relative"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-2xl rotate-6 opacity-20" />
+                  <div className="relative w-full h-full bg-gradient-to-br from-blue-500 to-cyan-400 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-500/25">
+                    <Cloud className="w-10 h-10 text-white" />
+                  </div>
+                </motion.div>
 
-              <h1 className="text-3xl font-bold text-white text-center mb-2">
-                TeleCloud
-              </h1>
-              <p className="text-slate-400 text-center mb-8">
-                Unlimited cloud storage powered by Telegram
-              </p>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="text-center mb-10"
+                >
+                  <h1 className="text-4xl font-bold text-white mb-3 tracking-tight">
+                    TeleCloud
+                  </h1>
+                  <p className="text-slate-400 text-base leading-relaxed max-w-sm mx-auto">
+                    Unlimited cloud storage powered by Telegram. Free forever.
+                  </p>
+                </motion.div>
 
-              <div className="space-y-4 mb-8">
-                {[
-                  { icon: '🔒', text: 'Your data stays on your Telegram channel' },
-                  { icon: '💾', text: 'Unlimited storage - no caps, no limits' },
-                  { icon: '⚡', text: 'Fast uploads and downloads' },
-                  { icon: '🆓', text: '100% free - no subscriptions ever' },
-                ].map((item, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 + i * 0.1 }}
-                    className="flex items-center gap-3 text-slate-300"
-                  >
-                    <span className="text-xl">{item.icon}</span>
-                    <span className="text-sm">{item.text}</span>
-                  </motion.div>
-                ))}
-              </div>
+                {/* Features */}
+                <div className="grid grid-cols-2 gap-3 mb-10">
+                  {[
+                    { icon: '∞', text: 'Unlimited Storage', color: 'from-blue-500/10 to-blue-600/5' },
+                    { icon: '⚡', text: 'Lightning Fast', color: 'from-amber-500/10 to-amber-600/5' },
+                    { icon: '🔒', text: 'Private & Secure', color: 'from-green-500/10 to-green-600/5' },
+                    { icon: '💎', text: '100% Free', color: 'from-purple-500/10 to-purple-600/5' },
+                  ].map((item, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4 + i * 0.08 }}
+                      className={`flex items-center gap-3 p-3 rounded-xl bg-gradient-to-br ${item.color} border border-white/[0.04]`}
+                    >
+                      <span className="text-lg">{item.icon}</span>
+                      <span className="text-slate-300 text-sm font-medium">{item.text}</span>
+                    </motion.div>
+                  ))}
+                </div>
 
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setStep('token')}
-                className="w-full py-3.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-shadow flex items-center justify-center gap-2"
-              >
-                Get Started <ChevronRight className="w-5 h-5" />
-              </motion.button>
+                <motion.button
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.7 }}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  onClick={() => setStep('token')}
+                  className="w-full group relative py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-2xl shadow-xl shadow-blue-500/20 hover:shadow-blue-500/30 transition-all duration-300 flex items-center justify-center gap-2 overflow-hidden"
+                >
+                  <span className="absolute inset-0 bg-gradient-to-r from-blue-400 to-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <span className="relative flex items-center gap-2">
+                    Get Started <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </span>
+                </motion.button>
 
-              <div className="mt-6 flex items-start gap-2 text-xs text-slate-500">
-                <Shield className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <span>Your bot token is stored locally in your browser and never sent to any server.</span>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.8 }}
+                  className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-500"
+                >
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>Your data stays on your Telegram channel. Nothing is stored elsewhere.</span>
+                </motion.div>
               </div>
             </div>
           </motion.div>
@@ -148,79 +172,95 @@ export default function LoginScreen() {
         {step === 'token' && (
           <motion.div
             key="token"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="relative z-10 max-w-md w-full"
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -30, scale: 0.95 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="relative z-10 max-w-lg w-full"
           >
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
-              <div className="w-14 h-14 mx-auto mb-6 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center">
-                <Key className="w-7 h-7 text-white" />
-              </div>
-
-              <h2 className="text-xl font-bold text-white text-center mb-2">
-                Enter Bot Token
-              </h2>
-              <p className="text-slate-400 text-center text-sm mb-6">
-                Create a bot via <a href="https://t.me/BotFather" target="_blank" className="text-blue-400 hover:underline">@BotFather</a> on Telegram and paste the token here.
-              </p>
-
-              <div className="bg-black/20 rounded-xl p-4 mb-4">
-                <div className="text-xs text-slate-400 mb-3">
-                  <strong className="text-slate-300">Setup steps:</strong>
-                  <ol className="list-decimal list-inside mt-1 space-y-1">
-                    <li>Open Telegram and search for @BotFather</li>
-                    <li>Send /newbot and follow the instructions</li>
-                    <li>Add the bot as admin to your channel</li>
-                    <li>Copy the bot token and paste below</li>
-                  </ol>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={botToken}
-                    onChange={(e) => { setBotToken(e.target.value); setError(''); }}
-                    placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v..."
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-all font-mono text-sm"
-                    onKeyDown={(e) => e.key === 'Enter' && handleTokenSubmit()}
-                  />
+            <div className="relative">
+              <div className="absolute -inset-1 bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-red-500/20 rounded-[2rem] blur-xl opacity-50" />
+              
+              <div className="relative bg-[#111118]/80 backdrop-blur-2xl border border-white/[0.08] rounded-[2rem] p-10 shadow-2xl">
+                <div className="w-14 h-14 mx-auto mb-6 bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/20">
+                  <Key className="w-7 h-7 text-white" />
                 </div>
 
-                {error && (
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-red-400 text-sm"
+                <h2 className="text-2xl font-bold text-white text-center mb-2">
+                  Connect Your Bot
+                </h2>
+                <p className="text-slate-400 text-center text-sm mb-8">
+                  Enter your Telegram Bot token to get started
+                </p>
+
+                {/* Steps */}
+                <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5 mb-6">
+                  <p className="text-slate-300 text-sm font-medium mb-3">Quick Setup:</p>
+                  <div className="space-y-2.5">
+                    {[
+                      'Open Telegram → Search @BotFather',
+                      'Send /newbot → Follow instructions',
+                      'Add bot as admin to your channel',
+                      'Copy the token → Paste below',
+                    ].map((text, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <div className="w-5 h-5 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
+                          <span className="text-blue-400 text-[10px] font-bold">{i + 1}</span>
+                        </div>
+                        <span className="text-slate-400 text-sm">{text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={botToken}
+                      onChange={(e) => { setBotToken(e.target.value); setError(''); }}
+                      placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v..."
+                      className="w-full px-5 py-4 bg-white/[0.03] border border-white/[0.08] rounded-2xl text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/40 focus:bg-white/[0.05] transition-all font-mono text-sm"
+                      onKeyDown={(e) => e.key === 'Enter' && handleTokenSubmit()}
+                    />
+                  </div>
+
+                  <AnimatePresence>
+                    {error && (
+                      <motion.p
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -5 }}
+                        className="text-red-400 text-sm bg-red-500/5 border border-red-500/10 rounded-xl px-4 py-2"
+                      >
+                        {error}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+
+                  <motion.button
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                    onClick={handleTokenSubmit}
+                    disabled={loading}
+                    className="w-full py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-2xl shadow-lg shadow-blue-500/20 disabled:opacity-50 flex items-center justify-center gap-2 hover:shadow-blue-500/30 transition-all"
                   >
-                    {error}
-                  </motion.p>
-                )}
+                    {loading ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <LogIn className="w-5 h-5" /> Connect Bot
+                      </>
+                    )}
+                  </motion.button>
 
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleTokenSubmit}
-                  disabled={loading}
-                  className="w-full py-3.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-xl shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <LogIn className="w-5 h-5" /> Connect
-                    </>
-                  )}
-                </motion.button>
-
-                <button
-                  onClick={() => setStep('welcome')}
-                  className="w-full py-2 text-slate-400 hover:text-white text-sm transition-colors"
-                >
-                  ← Back
-                </button>
+                  <button
+                    onClick={() => { setStep('welcome'); setError(''); }}
+                    className="w-full py-2 text-slate-500 hover:text-slate-300 text-sm transition-colors"
+                  >
+                    ← Back
+                  </button>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -229,69 +269,86 @@ export default function LoginScreen() {
         {step === 'channels' && (
           <motion.div
             key="channels"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="relative z-10 max-w-md w-full"
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -30, scale: 0.95 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="relative z-10 max-w-lg w-full"
           >
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
-              <h2 className="text-xl font-bold text-white text-center mb-2">
-                Select Storage Channel
-              </h2>
-              <p className="text-slate-400 text-center text-sm mb-6">
-                Choose the Telegram channel to use as your cloud storage root.
-              </p>
+            <div className="relative">
+              <div className="absolute -inset-1 bg-gradient-to-r from-green-500/20 via-emerald-500/20 to-teal-500/20 rounded-[2rem] blur-xl opacity-50" />
+              
+              <div className="relative bg-[#111118]/80 backdrop-blur-2xl border border-white/[0.08] rounded-[2rem] p-10 shadow-2xl">
+                <div className="w-14 h-14 mx-auto mb-6 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-green-500/20">
+                  <Sparkles className="w-7 h-7 text-white" />
+                </div>
 
-              <div className="space-y-2 mb-4 max-h-60 overflow-y-auto">
-                {channels.length > 0 ? (
-                  channels.map((channel, i) => (
-                    <motion.button
-                      key={channel.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.05 }}
-                      whileHover={{ scale: 1.01 }}
-                      whileTap={{ scale: 0.99 }}
-                      onClick={() => handleChannelSelect(channel)}
-                      className="w-full flex items-center gap-3 p-3 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-blue-500/30 rounded-xl transition-all text-left"
-                    >
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                        {channel.title.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white font-medium truncate">{channel.title}</p>
-                        {channel.username && (
-                          <p className="text-slate-400 text-xs">@{channel.username}</p>
-                        )}
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-slate-400" />
-                    </motion.button>
-                  ))
-                ) : (
-                  <div className="text-center py-8">
-                    <Info className="w-10 h-10 text-slate-500 mx-auto mb-3" />
-                    <p className="text-slate-400 text-sm">
-                      No channels found. Make sure the bot is added as admin to your channel and has posted at least once.
-                    </p>
+                <h2 className="text-2xl font-bold text-white text-center mb-2">
+                  Select Storage Channel
+                </h2>
+                <p className="text-slate-400 text-center text-sm mb-8">
+                  Enter your channel's username or ID to use as storage
+                </p>
+
+                {/* Channel Input */}
+                <div className="space-y-4">
+                  <div className="relative">
+                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 text-lg">@</span>
+                    <input
+                      type="text"
+                      value={channelInput}
+                      onChange={(e) => { setChannelInput(e.target.value); setError(''); }}
+                      placeholder="channel_username or -1001234567890"
+                      className="w-full pl-10 pr-5 py-4 bg-white/[0.03] border border-white/[0.08] rounded-2xl text-white placeholder-slate-600 focus:outline-none focus:border-green-500/40 focus:bg-white/[0.05] transition-all text-sm"
+                      onKeyDown={(e) => e.key === 'Enter' && handleChannelConnect()}
+                    />
                   </div>
-                )}
+
+                  <AnimatePresence>
+                    {error && (
+                      <motion.p
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -5 }}
+                        className="text-red-400 text-sm bg-red-500/5 border border-red-500/10 rounded-xl px-4 py-2"
+                      >
+                        {error}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+
+                  <motion.button
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                    onClick={handleChannelConnect}
+                    disabled={loading}
+                    className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-2xl shadow-lg shadow-green-500/20 disabled:opacity-50 flex items-center justify-center gap-2 hover:shadow-green-500/30 transition-all"
+                  >
+                    {loading ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Check className="w-5 h-5" /> Connect Channel
+                      </>
+                    )}
+                  </motion.button>
+
+                  <button
+                    onClick={() => { setStep('token'); setError(''); }}
+                    className="w-full py-2 text-slate-500 hover:text-slate-300 text-sm transition-colors"
+                  >
+                    ← Back
+                  </button>
+                </div>
+
+                {/* Help text */}
+                <div className="mt-6 p-4 bg-white/[0.02] border border-white/[0.04] rounded-xl">
+                  <p className="text-slate-500 text-xs leading-relaxed">
+                    <strong className="text-slate-400">Tip:</strong> You can find your channel's public link by going to Channel Info → Channel Type. 
+                    The username is what appears after t.me/ in the link. For private channels, use the channel ID (starts with -100).
+                  </p>
+                </div>
               </div>
-
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleManualChannel}
-                className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white font-medium transition-all"
-              >
-                Enter Channel Manually
-              </motion.button>
-
-              <button
-                onClick={() => setStep('token')}
-                className="w-full py-2 mt-2 text-slate-400 hover:text-white text-sm transition-colors"
-              >
-                ← Back
-              </button>
             </div>
           </motion.div>
         )}
