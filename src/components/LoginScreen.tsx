@@ -11,7 +11,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [channelInput, setChannelInput] = useState('');
   
-  const { setBotToken: storeSetBotToken, setSelectedChannel, setAuthenticated, setUser } = useAppStore();
+  const { setBotToken: storeSetBotToken, setSelectedChannel, setAuthenticated, setUser, botToken: storedBotToken } = useAppStore();
 
   const handleTokenSubmit = async () => {
     if (!botToken.trim()) {
@@ -61,33 +61,40 @@ export default function LoginScreen() {
     setError('');
 
     try {
-      // Clean the input
+      // Clean the input - remove @ if present for consistency
       let cleanInput = channelInput.trim();
-      
-      // If it looks like a username (not a number), add @ prefix
-      if (!cleanInput.startsWith('-') && !/^\d+$/.test(cleanInput)) {
-        // It's a username, add @ if not present
-        if (!cleanInput.startsWith('@')) {
-          cleanInput = '@' + cleanInput;
-        }
+      if (cleanInput.startsWith('@')) {
+        cleanInput = cleanInput.substring(1);
       }
       
-      console.log('Connecting to channel:', cleanInput);
+      console.log('[Login] Attempting to connect to channel:', cleanInput);
+      console.log('[Login] Bot token is set:', !!storedBotToken);
       
-      // First try to get chat info
+      // Make sure bot token is set on the service
+      if (storedBotToken) {
+        telegramService.setBotToken(storedBotToken);
+      }
+      
+      // Try to get chat info
       let channel;
       try {
         channel = await telegramService.getChatInfo(cleanInput);
+        console.log('[Login] Successfully got channel info:', channel);
       } catch (chatError: any) {
-        // If getChat fails, try to send a test message to verify bot can interact
-        console.log('getChat failed, trying to send test message...');
+        console.log('[Login] getChat failed:', chatError.message);
+        console.log('[Login] Trying fallback: send test message...');
+        
+        // If getChat fails, try sending a test message
+        // This works even when bot can post but can't read channel info
         try {
           const testMessage = await telegramService.sendMessage(
             cleanInput,
             '✅ TeleCloud connection test - Bot successfully connected!'
           );
           
-          // If we can send a message, we can get the chat info from the response
+          console.log('[Login] Test message sent successfully:', testMessage);
+          
+          // Extract channel info from the message response
           channel = {
             id: testMessage.chat.id,
             title: testMessage.chat.title || cleanInput,
@@ -98,19 +105,28 @@ export default function LoginScreen() {
           // Delete the test message
           try {
             await telegramService.deleteMessage(testMessage.chat.id, testMessage.message_id);
+            console.log('[Login] Test message deleted');
           } catch (deleteError) {
-            console.warn('Could not delete test message:', deleteError);
+            console.warn('[Login] Could not delete test message:', deleteError);
           }
         } catch (sendError: any) {
-          // Both methods failed, show the original error
+          console.error('[Login] Both methods failed');
+          console.error('[Login] getChat error:', chatError.message);
+          console.error('[Login] sendMessage error:', sendError.message);
+          
+          // Show the most helpful error message
+          if (chatError.message.includes('Channel not found')) {
+            throw new Error(`Cannot connect to channel "${cleanInput}".\n\nThe bot cannot see this channel. Please verify:\n• Bot is added as administrator\n• Bot has "Post Messages" permission\n• Channel identifier is correct\n\nFor public channels: use username (e.g., "mychannel")\nFor private channels: use numeric ID (e.g., "-1001234567890")`);
+          }
           throw chatError;
         }
       }
       
+      console.log('[Login] Channel connected successfully:', channel);
       setSelectedChannel(channel);
       setAuthenticated(true);
     } catch (err: any) {
-      // Show the detailed error message from the service
+      console.error('[Login] Connection failed:', err);
       setError(err.message || 'Could not connect to channel. Please check the username/ID and ensure the bot is admin.');
     } finally {
       setLoading(false);
