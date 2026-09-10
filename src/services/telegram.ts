@@ -37,7 +37,12 @@ class TelegramService {
       body: JSON.stringify({ chat_id: chatId }),
     });
     const data = await response.json();
-    if (!data.ok) throw new Error(data.description);
+    if (!data.ok) {
+      // If we can't get administrators, just return empty array
+      // This can happen if bot doesn't have sufficient permissions
+      console.warn('Could not get chat administrators:', data.description);
+      return [];
+    }
     return data.result;
   }
 
@@ -49,15 +54,54 @@ class TelegramService {
   }
 
   async getChatInfo(chatId: string | number): Promise<TelegramChannel> {
+    // First verify the bot token is valid
+    try {
+      await this.getMe();
+    } catch (error) {
+      throw new Error('Invalid bot token. Please check your token and try again.');
+    }
+
     const response = await fetch(this.getApiUrl('getChat'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId }),
     });
     const data = await response.json();
-    if (!data.ok) throw new Error(data.description || 'Failed to get chat info');
+    
+    if (!data.ok) {
+      const errorMsg = data.description || 'Failed to get chat info';
+      
+      // Provide helpful error messages
+      if (errorMsg.includes('chat not found')) {
+        throw new Error('Channel not found. Make sure: 1) The bot is added as admin to the channel, 2) You entered the correct username/ID, 3) For private channels, use the numeric ID (starts with -100)');
+      } else if (errorMsg.includes('bot is not a member')) {
+        throw new Error('Bot is not a member of this channel. Please add the bot as an administrator first.');
+      } else if (errorMsg.includes('PEER_ID_INVALID')) {
+        throw new Error('Invalid channel ID. For public channels, use the username (without @). For private channels, use the numeric ID.');
+      }
+      
+      throw new Error(errorMsg);
+    }
     
     const chat = data.result;
+    
+    // Verify the bot has admin rights
+    if (chat.type === 'channel' || chat.type === 'supergroup') {
+      try {
+        const admins = await this.getChatAdministrators(chat.id);
+        const botInfo = await this.getMe();
+        const isBotAdmin = admins.some((admin: any) => admin.user.id === botInfo.id);
+        
+        if (!isBotAdmin && admins.length > 0) {
+          // Only warn if we got admins but bot isn't in the list
+          console.warn('Bot may not be an administrator in this channel. Some features may not work.');
+        }
+      } catch (adminError: any) {
+        // If we can't check admins, continue anyway
+        console.warn('Could not verify admin status:', adminError.message);
+      }
+    }
+    
     return {
       id: chat.id,
       title: chat.title || chat.username || 'Unknown',
