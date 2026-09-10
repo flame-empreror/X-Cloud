@@ -61,10 +61,52 @@ export default function LoginScreen() {
     setError('');
 
     try {
-      // Remove @ if present
-      const cleanInput = channelInput.trim().replace('@', '');
+      // Clean the input
+      let cleanInput = channelInput.trim();
       
-      const channel = await telegramService.getChatInfo(cleanInput);
+      // If it looks like a username (not a number), add @ prefix
+      if (!cleanInput.startsWith('-') && !/^\d+$/.test(cleanInput)) {
+        // It's a username, add @ if not present
+        if (!cleanInput.startsWith('@')) {
+          cleanInput = '@' + cleanInput;
+        }
+      }
+      
+      console.log('Connecting to channel:', cleanInput);
+      
+      // First try to get chat info
+      let channel;
+      try {
+        channel = await telegramService.getChatInfo(cleanInput);
+      } catch (chatError: any) {
+        // If getChat fails, try to send a test message to verify bot can interact
+        console.log('getChat failed, trying to send test message...');
+        try {
+          const testMessage = await telegramService.sendMessage(
+            cleanInput,
+            '✅ TeleCloud connection test - Bot successfully connected!'
+          );
+          
+          // If we can send a message, we can get the chat info from the response
+          channel = {
+            id: testMessage.chat.id,
+            title: testMessage.chat.title || cleanInput,
+            username: testMessage.chat.username,
+            type: testMessage.chat.type,
+          };
+          
+          // Delete the test message
+          try {
+            await telegramService.deleteMessage(testMessage.chat.id, testMessage.message_id);
+          } catch (deleteError) {
+            console.warn('Could not delete test message:', deleteError);
+          }
+        } catch (sendError: any) {
+          // Both methods failed, show the original error
+          throw chatError;
+        }
+      }
+      
       setSelectedChannel(channel);
       setAuthenticated(true);
     } catch (err: any) {
