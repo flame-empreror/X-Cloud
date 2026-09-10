@@ -5,11 +5,11 @@ import { useAppStore } from '../store';
 import telegramService from '../services/telegram';
 
 export default function LoginScreen() {
-  const [step, setStep] = useState<'welcome' | 'token' | 'channels'>('welcome');
+  const [step, setStep] = useState<'welcome' | 'token' | 'group'>('welcome');
   const [botToken, setBotToken] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [channelInput, setChannelInput] = useState('');
+  const [groupInput, setGroupInput] = useState('');
   
   const { setBotToken: storeSetBotToken, setSelectedChannel, setAuthenticated, setUser, botToken: storedBotToken } = useAppStore();
 
@@ -35,7 +35,7 @@ export default function LoginScreen() {
         username: botInfo.username,
       });
 
-      setStep('channels');
+      setStep('group');
     } catch (err: any) {
       // Provide helpful error messages for common issues
       const errorMsg = err.message || '';
@@ -51,9 +51,9 @@ export default function LoginScreen() {
     }
   };
 
-  const handleChannelConnect = async () => {
-    if (!channelInput.trim()) {
-      setError('Please enter a channel username or ID');
+  const handleGroupConnect = async () => {
+    if (!groupInput.trim()) {
+      setError('Please enter a group username or ID');
       return;
     }
 
@@ -62,7 +62,7 @@ export default function LoginScreen() {
 
     try {
       // Clean the input - remove @ if present for consistency
-      let cleanInput = channelInput.trim();
+      let cleanInput = groupInput.trim();
       if (cleanInput.startsWith('@')) {
         cleanInput = cleanInput.substring(1);
       }
@@ -364,9 +364,9 @@ export default function LoginScreen() {
           </motion.div>
         )}
 
-        {step === 'channels' && (
+        {step === 'group' && (
           <motion.div
-            key="channels"
+            key="group"
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -30, scale: 0.95 }}
@@ -382,10 +382,10 @@ export default function LoginScreen() {
                 </div>
 
                 <h2 className="text-3xl font-bold text-white text-center mb-2">
-                  Select Storage Chat
+                  Connect Your Group
                 </h2>
                 <p className="text-gray-300 text-center mb-6">
-                  Enter your channel or group username or ID
+                  Enter your group username or ID
                 </p>
                 
                 {/* Bot Connection Status */}
@@ -404,11 +404,11 @@ export default function LoginScreen() {
                     <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 text-xl">@</span>
                     <input
                       type="text"
-                      value={channelInput}
-                      onChange={(e) => { setChannelInput(e.target.value); setError(''); }}
-                      placeholder="username or chat ID (e.g., -4435359229)"
+                      value={groupInput}
+                      onChange={(e) => { setGroupInput(e.target.value); setError(''); }}
+                      placeholder="group ID (e.g., -4435359229)"
                       className="w-full pl-12 pr-5 py-4 glass rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all text-sm"
-                      onKeyDown={(e) => e.key === 'Enter' && handleChannelConnect()}
+                      onKeyDown={(e) => e.key === 'Enter' && handleGroupConnect()}
                     />
                   </div>
 
@@ -428,7 +428,7 @@ export default function LoginScreen() {
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={handleChannelConnect}
+                    onClick={handleGroupConnect}
                     disabled={loading}
                     className="w-full py-4 btn-success text-white font-bold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50"
                   >
@@ -436,7 +436,7 @@ export default function LoginScreen() {
                       <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
                       <>
-                        <Check className="w-5 h-5" /> Connect Chat
+                        <Check className="w-5 h-5" /> Connect Group
                       </>
                     )}
                   </motion.button>
@@ -452,28 +452,31 @@ export default function LoginScreen() {
               <div className="mt-6 space-y-3">
                 <div className="card-primary rounded-xl p-4">
                   <p className="text-gray-300 text-xs leading-relaxed mb-2">
-                    <strong className="text-blue-400">💡 How to connect:</strong>
+                    <strong className="text-blue-400">💡 How to get your group ID:</strong>
                   </p>
-                  <ul className="text-gray-400 text-xs space-y-1.5 ml-4 list-disc">
-                    <li><strong className="text-gray-300">Public chat:</strong> Use the username (without @)</li>
-                    <li><strong className="text-gray-300">Private chat:</strong> Use the numeric ID from Telegram Web URL</li>
-                    <li><strong className="text-gray-300">Works with:</strong> Channels, groups, and supergroups</li>
-                  </ul>
+                  <ol className="text-gray-400 text-xs space-y-1.5 ml-4 list-decimal">
+                    <li>Open Telegram Web: <span className="text-blue-300">web.telegram.org</span></li>
+                    <li>Click on your group</li>
+                    <li>Look at the URL in your browser</li>
+                    <li>Copy the number after <span className="text-blue-300">#</span></li>
+                    <li>Example: URL shows <span className="text-blue-300">#-4435359229</span> → enter <span className="text-blue-300">-4435359229</span></li>
+                  </ol>
                 </div>
                 
                 <div className="card-warning rounded-xl p-4">
                   <p className="text-gray-300 text-xs leading-relaxed mb-2">
-                    <strong className="text-amber-400">⚠️ IMPORTANT - Bot must be added as member:</strong>
+                    <strong className="text-amber-400">⚠️ IMPORTANT - Add bot to group first:</strong>
                   </p>
                   <ol className="text-gray-400 text-xs space-y-1.5 ml-4 list-decimal">
-                    <li>Open your chat/channel in Telegram</li>
-                    <li>Click "Add Members" or "Add People"</li>
+                    <li>Open your group in Telegram</li>
+                    <li>Click group name at the top</li>
+                    <li>Click <strong className="text-gray-300">"Add Members"</strong></li>
                     <li>Search for your bot's username</li>
-                    <li><strong className="text-gray-300">Add the bot as a member first</strong></li>
-                    <li>Then make it admin (if not already)</li>
+                    <li><strong className="text-gray-300">Add the bot as a member</strong></li>
+                    <li>Then make it admin with "Post Messages" permission</li>
                   </ol>
-                  <p className="text-amber-300 text-xs mt-2">
-                    Note: Bot must be a member BEFORE it can be admin!
+                  <p className="text-amber-300 text-xs mt-2 font-semibold">
+                    ⚡ Bot must be a member BEFORE it can be admin!
                   </p>
                 </div>
               </div>              </div>
