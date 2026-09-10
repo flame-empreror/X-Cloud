@@ -26,6 +26,7 @@ export default function LoginScreen() {
       telegramService.setBotToken(botToken.trim());
       const botInfo = await telegramService.getMe();
       
+      // Bot token is valid, store it and move to next step
       storeSetBotToken(botToken.trim());
       
       setUser({
@@ -36,7 +37,15 @@ export default function LoginScreen() {
 
       setStep('channels');
     } catch (err: any) {
-      setError(err.message || 'Invalid bot token. Please check and try again.');
+      // Provide helpful error messages for common issues
+      const errorMsg = err.message || '';
+      if (errorMsg.includes('Unauthorized') || errorMsg.includes('401')) {
+        setError('Invalid bot token. Please check your token from @BotFather and try again.');
+      } else if (errorMsg.includes('network') || errorMsg.includes('fetch')) {
+        setError('Network error. Please check your internet connection and try again.');
+      } else {
+        setError(errorMsg || 'Failed to connect. Please check your bot token and try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -52,11 +61,15 @@ export default function LoginScreen() {
     setError('');
 
     try {
-      const channel = await telegramService.getChatInfo(channelInput.replace('@', ''));
+      // Remove @ if present
+      const cleanInput = channelInput.trim().replace('@', '');
+      
+      const channel = await telegramService.getChatInfo(cleanInput);
       setSelectedChannel(channel);
       setAuthenticated(true);
     } catch (err: any) {
-      setError('Could not connect to channel. Make sure the bot is admin and you entered the correct username/ID.');
+      // Show the detailed error message from the service
+      setError(err.message || 'Could not connect to channel. Please check the username/ID and ensure the bot is admin.');
     } finally {
       setLoading(false);
     }
@@ -308,9 +321,20 @@ export default function LoginScreen() {
                 <h2 className="text-3xl font-bold text-white text-center mb-2">
                   Select Storage Channel
                 </h2>
-                <p className="text-gray-300 text-center mb-8">
+                <p className="text-gray-300 text-center mb-6">
                   Enter your channel's username or ID
                 </p>
+                
+                {/* Bot Connection Status */}
+                <div className="card-success rounded-xl p-3 mb-6 flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center shadow-lg">
+                    <Check className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-green-300 text-sm font-semibold">Bot Connected</p>
+                    <p className="text-gray-400 text-xs">Your bot token is valid and ready</p>
+                  </div>
+                </div>
 
                 <div className="space-y-4">
                   <div className="relative">
@@ -362,13 +386,29 @@ export default function LoginScreen() {
                   </button>
                 </div>
 
-                <div className="mt-6 card-primary rounded-xl p-4">
-                  <p className="text-gray-300 text-xs leading-relaxed">
-                    <strong className="text-blue-400">💡 Tip:</strong> You can find your channel's public link by going to Channel Info → Channel Type. 
-                    The username is what appears after t.me/ in the link.
+              <div className="mt-6 space-y-3">
+                <div className="card-primary rounded-xl p-4">
+                  <p className="text-gray-300 text-xs leading-relaxed mb-2">
+                    <strong className="text-blue-400">💡 How to find your channel:</strong>
                   </p>
+                  <ul className="text-gray-400 text-xs space-y-1.5 ml-4 list-disc">
+                    <li><strong className="text-gray-300">Public channel:</strong> Use the username (without @) from your channel link</li>
+                    <li><strong className="text-gray-300">Private channel:</strong> Use the numeric ID (starts with -100)</li>
+                    <li><strong className="text-gray-300">Bot must be admin:</strong> Add your bot as administrator with "Post Messages" permission</li>
+                  </ul>
                 </div>
-              </div>
+                
+                <div className="card-warning rounded-xl p-4">
+                  <p className="text-gray-300 text-xs leading-relaxed">
+                    <strong className="text-amber-400">⚠️ Common issues:</strong>
+                  </p>
+                  <ul className="text-gray-400 text-xs space-y-1.5 ml-4 list-disc mt-2">
+                    <li>Bot not added as admin to the channel</li>
+                    <li>Wrong username or ID format</li>
+                    <li>Bot token is incorrect or expired</li>
+                  </ul>
+                </div>
+              </div>              </div>
             </div>
           </motion.div>
         )}
