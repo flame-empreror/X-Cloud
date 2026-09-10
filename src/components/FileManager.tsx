@@ -2,13 +2,14 @@ import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Upload, FolderPlus, Grid3X3, List, Search, MoreVertical,
-  Download, Trash2, Home, ChevronRight, Plus, Folder, Eye
+  Download, Trash2, Home, ChevronRight, Plus, Folder, Eye, RefreshCw
 } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { useAppStore } from '../store';
 import { getFileIcon, getFileIconColor, formatFileSize, formatDate, isImageFile, isVideoFile } from '../utils/fileUtils';
 import { FileItem } from '../types';
 import telegramService from '../services/telegram';
+import { fileSystemService } from '../services/filesystem';
 import { generateId } from '../utils/fileUtils';
 
 interface FileManagerProps {
@@ -29,6 +30,7 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
   const [contextMenu, setContextMenu] = useState<{ file: FileItem; x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get files in current path
@@ -249,6 +251,38 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
     }
   };
 
+  const handleRefresh = async () => {
+    if (!selectedChannel || isRefreshing) return;
+    
+    setIsRefreshing(true);
+    setUploadError('');
+    
+    console.log('[FileManager] Refreshing file list from group...');
+    
+    try {
+      const messages = await telegramService.scanGroupMessages(selectedChannel.id);
+      const parsedFiles: FileItem[] = [];
+      
+      for (const message of messages) {
+        const fileItem = fileSystemService.parseMessage(message);
+        if (fileItem) {
+          parsedFiles.push(fileItem);
+        }
+      }
+      
+      // Build complete file tree with virtual folders
+      const fileTree = fileSystemService.buildFileTree(parsedFiles);
+      
+      console.log('[FileManager] Refreshed:', fileTree.length, 'files/folders');
+      setFiles(fileTree);
+    } catch (error: any) {
+      console.error('[FileManager] Refresh failed:', error);
+      setUploadError('Failed to refresh: ' + error.message);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const breadcrumbs = currentPath === '/' ? ['Home'] : ['Home', ...currentPath.split('/').filter(Boolean)];
 
   return (
@@ -340,6 +374,18 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
             className="p-2.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all"
           >
             {viewMode === 'grid' ? <List className="w-5 h-5" /> : <Grid3X3 className="w-5 h-5" />}
+          </motion.button>
+
+          {/* Refresh Button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="p-2.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all disabled:opacity-50"
+            title="Refresh from group"
+          >
+            <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
           </motion.button>
 
           {/* Upload Button - ONLY this opens the file picker */}

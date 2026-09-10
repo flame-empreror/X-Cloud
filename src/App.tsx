@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Menu } from 'lucide-react';
 import { useAppStore } from './store';
 import telegramService from './services/telegram';
+import { fileSystemService } from './services/filesystem';
 import LoginScreen from './components/LoginScreen';
 import Sidebar from './components/Sidebar';
 import FileManager from './components/FileManager';
@@ -12,7 +13,7 @@ import MediaViewer from './components/MediaViewer';
 import { FileItem } from './types';
 
 function App() {
-  const { isAuthenticated, selectedChannel, files, botToken, activeTab, setActiveTab } = useAppStore();
+  const { isAuthenticated, selectedChannel, files, botToken, activeTab, setActiveTab, setFiles } = useAppStore();
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -22,6 +23,37 @@ function App() {
       telegramService.setBotToken(botToken);
     }
   }, [botToken, isAuthenticated]);
+
+  // Scan group messages on startup to reconstruct file structure
+  useEffect(() => {
+    const scanGroup = async () => {
+      if (!isAuthenticated || !selectedChannel || files.length > 0) return;
+      
+      console.log('[App] Scanning group messages to reconstruct file structure...');
+      
+      try {
+        const messages = await telegramService.scanGroupMessages(selectedChannel.id);
+        const parsedFiles: FileItem[] = [];
+        
+        for (const message of messages) {
+          const fileItem = fileSystemService.parseMessage(message);
+          if (fileItem) {
+            parsedFiles.push(fileItem);
+          }
+        }
+        
+        // Build complete file tree with virtual folders
+        const fileTree = fileSystemService.buildFileTree(parsedFiles);
+        
+        console.log('[App] Reconstructed', fileTree.length, 'files/folders');
+        setFiles(fileTree);
+      } catch (error) {
+        console.error('[App] Failed to scan group:', error);
+      }
+    };
+    
+    scanGroup();
+  }, [isAuthenticated, selectedChannel]);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
