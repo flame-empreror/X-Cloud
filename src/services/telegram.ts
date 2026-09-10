@@ -92,6 +92,37 @@ class TelegramService {
     };
   }
 
+  async scanGroupMessages(chatId: string | number, limit: number = 100): Promise<any[]> {
+    if (!this.botToken) {
+      throw new Error('Bot token not set');
+    }
+
+    console.log('[Telegram] Scanning group messages for chat:', chatId);
+
+    // Get updates to find messages in the group
+    const url = `https://api.telegram.org/bot${this.botToken}/getUpdates?limit=${limit}`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (!data.ok) {
+      console.error('[Telegram] Failed to get updates:', data);
+      return [];
+    }
+
+    const messages: any[] = [];
+    
+    // Extract messages from updates
+    for (const update of data.result) {
+      const message = update.message || update.channel_post;
+      if (message && message.chat && (message.chat.id === chatId || message.chat.id.toString() === chatId.toString())) {
+        messages.push(message);
+      }
+    }
+
+    console.log('[Telegram] Found', messages.length, 'messages in group');
+    return messages;
+  }
+
   async sendMessage(chatId: string | number, text: string): Promise<any> {
     const response = await fetch(this.getApiUrl('sendMessage'), {
       method: 'POST',
