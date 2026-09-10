@@ -18,48 +18,49 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const totalSize = files.reduce((acc, f) => acc + f.size, 0);
 
   const navItems = [
-    { id: 'files', icon: FolderOpen, label: 'Files' },
-    { id: 'transfers', icon: ArrowUpFromLine, label: 'Transfers', badge: activeTransfers },
-    { id: 'settings', icon: Settings, label: 'Settings' },
+    { id: 'files', icon: FolderOpen, label: 'Files', gradient: 'from-blue-500 to-cyan-500' },
+    { id: 'transfers', icon: ArrowUpFromLine, label: 'Transfers', badge: activeTransfers, gradient: 'from-purple-500 to-pink-500' },
+    { id: 'settings', icon: Settings, label: 'Settings', gradient: 'from-green-500 to-emerald-500' },
   ];
 
   return (
-    <div className="w-[260px] h-full bg-[#0d0d14]/90 backdrop-blur-2xl border-r border-white/[0.06] flex flex-col">
+    <div className="w-[280px] h-full glass flex flex-col border-r border-white/10">
       {/* Logo */}
-      <div className="p-5 pb-4">
+      <div className="p-6 pb-5">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <Cloud className="w-5 h-5 text-white" />
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl blur-lg opacity-50" />
+            <div className="relative w-12 h-12 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-xl">
+              <Cloud className="w-6 h-6 text-white" />
             </div>
           </div>
           <div>
-            <h1 className="text-white font-bold text-lg tracking-tight">TeleCloud</h1>
-            <p className="text-slate-600 text-[11px] font-medium">Cloud Storage</p>
+            <h1 className="text-white font-bold text-xl gradient-text">TeleCloud</h1>
+            <p className="text-gray-400 text-xs font-medium">Cloud Storage</p>
           </div>
         </div>
       </div>
 
       {/* Channel Info */}
       {selectedChannel && (
-        <div className="px-4 pb-4">
-          <div className="flex items-center gap-2.5 px-3 py-2.5 bg-gradient-to-r from-blue-500/[0.06] to-purple-500/[0.04] border border-white/[0.06] rounded-xl">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/20 rounded-lg flex items-center justify-center">
-              <HardDrive className="w-4 h-4 text-blue-400" />
+        <div className="px-5 pb-5">
+          <div className="card-primary rounded-2xl p-4 flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
+              <HardDrive className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white text-xs font-medium truncate">{selectedChannel.title}</p>
-              <p className="text-slate-500 text-[10px] mt-0.5">{formatFileSize(totalSize)} stored</p>
+              <p className="text-white text-sm font-semibold truncate">{selectedChannel.title}</p>
+              <p className="text-gray-400 text-xs mt-0.5">{formatFileSize(totalSize)} stored</p>
             </div>
           </div>
         </div>
       )}
 
       {/* Divider */}
-      <div className="mx-4 border-t border-white/[0.04]" />
+      <div className="mx-5 border-t border-white/10" />
 
       {/* Navigation */}
-      <nav className="flex-1 p-3 space-y-1">
+      <nav className="flex-1 p-4 space-y-2">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -68,20 +69,31 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
               key={item.id}
               whileTap={{ scale: 0.98 }}
               onClick={() => onTabChange(item.id)}
-              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all duration-200 group ${
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-200 group relative overflow-hidden ${
                 isActive
-                  ? 'bg-gradient-to-r from-blue-500/10 to-blue-500/[0.03] text-blue-400 border border-blue-500/15 shadow-sm shadow-blue-500/5'
-                  : 'text-slate-400 hover:text-white hover:bg-white/[0.03]'
+                  ? 'text-white shadow-lg'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
-              <Icon className={`w-[18px] h-[18px] ${isActive ? 'text-blue-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-              <span className="text-sm font-medium flex-1 text-left">{item.label}</span>
+              {isActive && (
+                <motion.div
+                  layoutId="activeTab"
+                  className={`absolute inset-0 bg-gradient-to-r ${item.gradient} opacity-20`}
+                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                />
+              )}
+              <div className={`relative w-8 h-8 rounded-xl flex items-center justify-center ${
+                isActive ? `bg-gradient-to-br ${item.gradient} shadow-lg` : 'bg-white/5 group-hover:bg-white/10'
+              }`}>
+                <Icon className="w-4 h-4" />
+              </div>
+              <span className="relative text-sm font-semibold flex-1 text-left">{item.label}</span>
               {item.badge && item.badge > 0 && (
-                <span className="px-2 py-0.5 bg-blue-500 text-white text-[10px] font-bold rounded-full min-w-[20px] text-center">
+                <span className="relative px-2.5 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold rounded-full min-w-[24px] text-center shadow-lg">
                   {item.badge}
                 </span>
               )}
-              {isActive && <ChevronRight className="w-4 h-4 text-blue-400/50" />}
+              {isActive && <ChevronRight className="relative w-4 h-4 text-white/50" />}
             </motion.button>
           );
         })}
@@ -89,33 +101,39 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
 
       {/* Speed Boost Indicator */}
       {settings.speedBoost && (
-        <div className="mx-4 mb-3">
-          <div className="px-3 py-2.5 bg-gradient-to-r from-amber-500/[0.08] to-orange-500/[0.04] border border-amber-500/15 rounded-xl">
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 bg-amber-500/20 rounded-md flex items-center justify-center">
-                <Zap className="w-3 h-3 text-amber-400" />
+        <div className="px-5 mb-4">
+          <div className="card-warning rounded-2xl p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
+                <Zap className="w-4 h-4 text-white" />
               </div>
-              <span className="text-amber-400 text-[11px] font-semibold">Speed Boost</span>
+              <div>
+                <p className="text-amber-300 text-xs font-bold">Speed Boost</p>
+                <p className="text-gray-400 text-[10px]">Active</p>
+              </div>
             </div>
           </div>
         </div>
       )}
 
       {/* User & Logout */}
-      <div className="p-4 border-t border-white/[0.04]">
+      <div className="p-5 border-t border-white/10">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-purple-500/10">
-            {user?.first_name?.charAt(0)?.toUpperCase() || 'U'}
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl blur-md opacity-50" />
+            <div className="relative w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg">
+              {user?.first_name?.charAt(0)?.toUpperCase() || 'U'}
+            </div>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-white text-xs font-medium truncate">{user?.first_name || 'User'}</p>
-            <p className="text-slate-600 text-[10px]">Connected</p>
+            <p className="text-white text-sm font-semibold truncate">{user?.first_name || 'User'}</p>
+            <p className="text-gray-400 text-xs">Connected</p>
           </div>
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={logout}
-            className="p-2 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+            className="p-2.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
             title="Logout"
           >
             <LogOut className="w-4 h-4" />

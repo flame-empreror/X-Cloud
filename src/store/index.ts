@@ -23,6 +23,8 @@ interface AppActions {
   toggleFileSelection: (id: string) => void;
   clearSelection: () => void;
   logout: () => void;
+  setActiveTab: (tab: string) => void;
+  activeTab: string;
 }
 
 const defaultSettings: AppSettings = {
@@ -48,6 +50,7 @@ export const useAppStore = create<AppState & AppActions>()(
       isAuthenticated: false,
       viewMode: 'grid',
       selectedFiles: [],
+      activeTab: 'files',
 
       setUser: (user) => set({ user }),
       setBotToken: (botToken) => set({ botToken }),
@@ -78,6 +81,7 @@ export const useAppStore = create<AppState & AppActions>()(
           : [...state.selectedFiles, id],
       })),
       clearSelection: () => set({ selectedFiles: [] }),
+      setActiveTab: (activeTab) => set({ activeTab }),
       logout: () => set({
         user: null,
         botToken: '',
@@ -88,6 +92,7 @@ export const useAppStore = create<AppState & AppActions>()(
         transfers: [],
         isAuthenticated: false,
         selectedFiles: [],
+        activeTab: 'files',
       }),
     }),
     {

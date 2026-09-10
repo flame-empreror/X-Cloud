@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu } from 'lucide-react';
 import { useAppStore } from './store';
+import telegramService from './services/telegram';
 import LoginScreen from './components/LoginScreen';
 import Sidebar from './components/Sidebar';
 import FileManager from './components/FileManager';
@@ -11,10 +12,16 @@ import MediaViewer from './components/MediaViewer';
 import { FileItem } from './types';
 
 function App() {
-  const { isAuthenticated, selectedChannel, files } = useAppStore();
-  const [activeTab, setActiveTab] = useState('files');
+  const { isAuthenticated, selectedChannel, files, botToken, activeTab, setActiveTab } = useAppStore();
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // CRITICAL: Initialize telegram service with bot token on app load
+  useEffect(() => {
+    if (botToken && isAuthenticated) {
+      telegramService.setBotToken(botToken);
+    }
+  }, [botToken, isAuthenticated]);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -26,7 +33,9 @@ function App() {
   }
 
   return (
-    <div className="h-screen w-screen flex overflow-hidden bg-[#0a0a0f]">
+    <div className="h-screen w-screen flex overflow-hidden" style={{
+      background: 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)'
+    }}>
       {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
         {mobileSidebarOpen && (
@@ -59,22 +68,22 @@ function App() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile Header */}
-        <div className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-white/[0.06] bg-[#0d0d14]/80 backdrop-blur-xl">
+        <div className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-white/5 backdrop-blur-xl">
           <button
             onClick={() => setMobileSidebarOpen(true)}
-            className="p-2 text-slate-400 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all"
+            className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all"
           >
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-lg flex items-center justify-center">
-              <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center shadow-lg">
+              <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />
               </svg>
             </div>
-            <h1 className="text-white font-bold text-sm">TeleCloud</h1>
+            <h1 className="text-white font-bold text-sm gradient-text">TeleCloud</h1>
           </div>
-          <span className="text-slate-500 text-xs ml-auto truncate max-w-[120px]">{selectedChannel?.title}</span>
+          <span className="text-gray-400 text-xs ml-auto truncate max-w-[120px]">{selectedChannel?.title}</span>
         </div>
 
         <AnimatePresence mode="wait">
