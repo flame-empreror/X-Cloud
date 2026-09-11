@@ -36,10 +36,13 @@ export default function App() {
             try {
               const chat = JSON.parse(savedChat);
               
-              // Restore BigInt values from strings
+              // Restore BigInt values from strings and ensure proper structure
               if (chat.inputPeer) {
-                chat.inputPeer.accessHash = BigInt(chat.inputPeer.accessHash || '0');
-                chat.inputPeer.channelId = BigInt(chat.inputPeer.channelId || '0');
+                chat.inputPeer = {
+                  _: chat.inputPeer._ || 'inputPeerChannel',
+                  accessHash: BigInt(chat.inputPeer.accessHash || '0'),
+                  channelId: BigInt(chat.inputPeer.channelId || '0'),
+                };
               }
               
               console.log('[App] Restored selected chat:', chat);

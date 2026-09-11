@@ -58,11 +58,14 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
             const metadata = JSON.parse(jsonStr);
             console.log('[FileManager] Parsed metadata:', metadata);
             
-            // Extract file ID from media
+            // Extract file ID and document from media
             let fileId: string | undefined;
+            let document: any;
             if (msg.media && msg.media._ === 'messageMediaDocument') {
               fileId = msg.media.document?.id?.toString();
+              document = msg.media.document; // Store the complete document object
               console.log('[FileManager] File ID:', fileId);
+              console.log('[FileManager] Document:', document);
             }
             
             const fileItem: FileItem = {
@@ -75,6 +78,7 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
               extension: metadata.extension || '',
               telegramMessageId: msg.id,
               telegramFileId: fileId,
+              telegramDocument: document, // Store the complete document
               createdAt: metadata.createdAt || (msg.date ? msg.date * 1000 : Date.now()),
               modifiedAt: msg.date ? msg.date * 1000 : Date.now(),
             };
@@ -155,6 +159,7 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
           extension: file.name.split('.').pop() || '',
           telegramMessageId: result.id,
           telegramFileId: result.media?.document?.id?.toString(),
+          telegramDocument: result.media?.document, // Store the document object
           createdAt: Date.now(),
           modifiedAt: Date.now(),
         };
@@ -194,24 +199,43 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
     setShowTransfers(true);
 
     try {
-      // Get the message to access its media
-      const messages = await mtprotoService.getMessages(chat.id, 100, chat.inputPeer);
-      const message = messages.find((m: any) => m.id === file.telegramMessageId);
+      console.log('[FileManager] Starting download for file:', file.name);
+      console.log('[FileManager] File document:', file.telegramDocument);
       
-      if (!message || !message.media) {
-        throw new Error('File not found');
-      }
+      // Use the stored document object if available
+      if (file.telegramDocument) {
+        console.log('[FileManager] Using stored document for download');
+        const blob = await mtprotoService.downloadMedia(file.telegramDocument);
+        
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        // Fallback: fetch the message again
+        console.log('[FileManager] Document not stored, fetching message');
+        const messages = await mtprotoService.getMessages(chat.id, 100, chat.inputPeer);
+        const message = messages.find((m: any) => m.id === file.telegramMessageId);
+        
+        if (!message || !message.media) {
+          throw new Error('File not found');
+        }
 
-      const blob = await mtprotoService.downloadMedia(message.media);
-      
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = file.name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+        const blob = await mtprotoService.downloadMedia(message.media);
+        
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
 
       setTransfers(prev => prev.map(t => 
         t.id === transferId ? { ...t, status: 'completed', progress: 100 } : t
