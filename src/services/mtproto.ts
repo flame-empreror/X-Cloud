@@ -183,63 +183,17 @@ class MTProtoService {
     console.log('[MTProto] inputPeer:', inputPeer);
     
     try {
-      // Convert accessHash from string to Long if needed
-      let accessHash = Long.fromNumber(0);
-      if (inputPeer?.accessHash) {
-        if (typeof inputPeer.accessHash === 'string') {
-          accessHash = Long.fromString(inputPeer.accessHash);
-        } else if (inputPeer.accessHash instanceof Long) {
-          accessHash = inputPeer.accessHash;
-        }
-      }
+      // Use the high-level getMessages method which properly handles Long objects
+      // This ensures all Long objects are proper instances, not serialized objects
+      const messages = await this.client.getMessages(chatId, limit);
       
-      console.log('[MTProto] Using accessHash:', accessHash.toString());
+      console.log('[MTProto] Retrieved', messages.length, 'messages');
       
-      // Use the channelId from inputPeer if available, otherwise use Math.abs(chatId)
-      const channelId = inputPeer?.channelId || Math.abs(chatId);
-      
-      console.log('[MTProto] Using channelId:', channelId);
-      
-      // Use raw API call to fetch messages with limit
-      const result = await this.client.call({
-        _: 'messages.getHistory',
-        peer: {
-          _: 'inputPeerChannel',
-          channelId: channelId,
-          accessHash: accessHash
-        },
-        offsetId: 0,
-        offsetDate: 0,
-        addOffset: 0,
-        limit: limit,
-        maxId: 0,
-        minId: 0,
-        hash: Long.fromNumber(0)
-      });
-      
-      console.log('[MTProto] getHistory result type:', result._);
-      
-      // Extract messages from the result
-      const messagesArray = (result as any).messages || [];
-      
-      console.log('[MTProto] Raw response type:', typeof messagesArray);
-      console.log('[MTProto] Raw response is array:', Array.isArray(messagesArray));
-      console.log('[MTProto] Retrieved', messagesArray.length, 'messages (including nulls)');
-      
-      // Log the raw response for debugging
-      console.log('[MTProto] Raw messages array:', messagesArray);
-      
-      // Filter out null/undefined values and log what we're filtering
-      const validMessages = messagesArray.filter((msg: any, idx: number) => {
+      // Filter out null/undefined values
+      const validMessages = messages.filter((msg: any) => {
         const isValid = msg !== null && msg !== undefined && msg.id !== undefined;
         if (!isValid) {
-          console.log(`[MTProto] Filtering out null/invalid message at index ${idx}:`, msg);
-        } else {
-          console.log(`[MTProto] Keeping valid message at index ${idx}:`, {
-            id: msg.id,
-            hasText: !!msg.text,
-            hasMedia: !!msg.media
-          });
+          console.log(`[MTProto] Filtering out null/invalid message:`, msg);
         }
         return isValid;
       });
