@@ -183,17 +183,60 @@ class MTProtoService {
     console.log('[MTProto] inputPeer:', inputPeer);
     
     try {
-      // Use the high-level getMessages method which properly handles Long objects
-      // This ensures all Long objects are proper instances, not serialized objects
-      const messages = await this.client.getMessages(chatId, limit);
+      // Convert accessHash from string to Long if needed
+      let accessHash = Long.fromNumber(0);
+      if (inputPeer?.accessHash) {
+        if (typeof inputPeer.accessHash === 'string') {
+          accessHash = Long.fromString(inputPeer.accessHash);
+        } else if (inputPeer.accessHash instanceof Long) {
+          accessHash = inputPeer.accessHash;
+        }
+      }
       
-      console.log('[MTProto] Retrieved', messages.length, 'messages');
+      console.log('[MTProto] Using accessHash:', accessHash.toString());
+      
+      // Use the channelId from inputPeer if available, otherwise use Math.abs(chatId)
+      const channelId = inputPeer?.channelId || Math.abs(chatId);
+      
+      console.log('[MTProto] Using channelId:', channelId);
+      
+      // Use raw API call to fetch messages with limit
+      const result = await this.client.call({
+        _: 'messages.getHistory',
+        peer: {
+          _: 'inputPeerChannel',
+          channelId: channelId,
+          accessHash: accessHash
+        },
+        offsetId: 0,
+        offsetDate: 0,
+        addOffset: 0,
+        limit: limit,
+        maxId: 0,
+        minId: 0,
+        hash: Long.fromNumber(0)
+      });
+      
+      console.log('[MTProto] getHistory result type:', result._);
+      
+      // Extract messages from the result
+      const messagesArray = (result as any).messages || [];
+      
+      console.log('[MTProto] Raw response type:', typeof messagesArray);
+      console.log('[MTProto] Raw response is array:', Array.isArray(messagesArray));
+      console.log('[MTProto] Retrieved', messagesArray.length, 'messages (including nulls)');
       
       // Filter out null/undefined values
-      const validMessages = messages.filter((msg: any) => {
+      const validMessages = messagesArray.filter((msg: any, idx: number) => {
         const isValid = msg !== null && msg !== undefined && msg.id !== undefined;
         if (!isValid) {
-          console.log(`[MTProto] Filtering out null/invalid message:`, msg);
+          console.log(`[MTProto] Filtering out null/invalid message at index ${idx}:`, msg);
+        } else {
+          console.log(`[MTProto] Keeping valid message at index ${idx}:`, {
+            id: msg.id,
+            hasText: !!msg.text || !!msg.message,
+            hasMedia: !!msg.media
+          });
         }
         return isValid;
       });
@@ -204,9 +247,9 @@ class MTProtoService {
       validMessages.slice(0, 3).forEach((msg: any, idx: number) => {
         console.log(`[MTProto] Message ${idx + 1}:`, {
           id: msg.id,
-          text: msg.text?.substring(0, 100),
+          text: (msg.text || msg.message)?.substring(0, 100),
           hasMedia: !!msg.media,
-          mediaType: msg.media?.type
+          mediaType: msg.media?._
         });
       });
       
@@ -273,9 +316,48 @@ class MTProtoService {
     
     console.log('[MTProto] Media type:', media._);
     
-    // Pass the entire message object to downloadAsBuffer
-    // The method will extract the media automatically
-    const buffer = await this.client.downloadAsBuffer(message);
+    // Helper function to convert serialized Long objects back to proper Long instances
+    const convertLong = (obj: any): any => {
+      if (obj && typeof obj === 'object' && 'low' in obj && 'high' in obj) {
+        return Long.fromBits(obj.low, obj.high, obj.unsigned || false);
+      }
+      return obj;
+    };
+    
+    // Helper function to recursively convert all Long objects in an object
+    const convertAllLongs = (obj: any): any => {
+      if (!obj || typeof obj !== 'object') return obj;
+      
+      const result: any = Array.isArray(obj) ? [] : {};
+      
+      for (const key in obj) {
+        const value = obj[key];
+        
+        // Check if this is a Long object
+        if (value && typeof value === 'object' && 'low' in value && 'high' in value) {
+          result[key] = convertLong(value);
+        }
+        // Recursively convert nested objects
+        else if (value && typeof value === 'object') {
+          result[key] = convertAllLongs(value);
+        }
+        // Keep primitive values as-is
+        else {
+          result[key] = value;
+        }
+      }
+      
+      return result;
+    };
+    
+    // Convert all Long objects in the message to proper Long instances
+    const convertedMessage = convertAllLongs(message);
+    
+    console.log('[MTProto] Converted message Long objects');
+    console.log('[MTProto] Document ID type:', typeof convertedMessage.media?.document?.id);
+    
+    // Pass the converted message object to downloadAsBuffer
+    const buffer = await this.client.downloadAsBuffer(convertedMessage);
     
     console.log('[MTProto] Download complete, buffer size:', buffer.length);
     return new Blob([buffer as any]);
