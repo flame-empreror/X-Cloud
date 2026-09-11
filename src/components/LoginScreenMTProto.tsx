@@ -19,15 +19,18 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Check if already logged in
+    // Check if already logged in (MTProto is already initialized in App.tsx)
     const checkAuth = async () => {
       try {
-        await mtprotoService.initialize();
+        console.log('[LoginScreen] Checking if user is logged in...');
         if (mtprotoService.isLoggedIn()) {
+          console.log('[LoginScreen] User is logged in, redirecting...');
           onLoginSuccess();
+        } else {
+          console.log('[LoginScreen] User is not logged in, showing login screen');
         }
-      } catch (err) {
-        console.error('Auth check failed:', err);
+      } catch (err: any) {
+        console.error('[LoginScreen] Auth check failed:', err);
       }
     };
     checkAuth();
@@ -105,7 +108,12 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               </svg>
             </div>
             <h1 className="text-3xl font-bold text-white mb-2">TeleCloud</h1>
-            <p className="text-gray-400">Login with your Telegram account</p>
+            <p className="text-gray-400 mb-4">Login with your Telegram account</p>
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-4">
+                <p className="text-red-400 text-sm">{error}</p>
+              </div>
+            )}
           </div>
 
           {step === 'method' && (
@@ -243,12 +251,6 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                   3. Point your camera at the QR code above
                 </p>
               </div>
-            </div>
-          )}
-
-          {error && (
-            <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <p className="text-red-400 text-sm">{error}</p>
             </div>
           )}
         </div>

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Menu } from 'lucide-react';
 import { useAppStore } from './store';
 import { mtprotoService } from './services/mtproto';
+import SetupScreen from './components/SetupScreen';
 import LoginScreenMTProto from './components/LoginScreenMTProto';
 import ChannelSelect from './components/ChannelSelect';
 import Sidebar from './components/Sidebar';
@@ -22,13 +23,37 @@ function App() {
   useEffect(() => {
     const init = async () => {
       try {
-        await mtprotoService.initialize();
-        if (mtprotoService.isLoggedIn()) {
-          setAuthenticated(true);
+        // Check if credentials are configured first
+        if (!mtprotoService.hasCredentials()) {
+          console.error('[App] API credentials not configured');
+          setIsLoading(false);
+          return;
         }
-      } catch (error) {
-        console.error('Failed to initialize MTProto:', error);
+
+        console.log('[App] Initializing MTProto...');
+        
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Initialization timeout')), 10000)
+        );
+        
+        await Promise.race([
+          mtprotoService.initialize(),
+          timeoutPromise
+        ]);
+        
+        console.log('[App] MTProto initialized successfully');
+        
+        if (mtprotoService.isLoggedIn()) {
+          console.log('[App] User is already logged in');
+          setAuthenticated(true);
+        } else {
+          console.log('[App] User is not logged in');
+        }
+      } catch (error: any) {
+        console.error('[App] Failed to initialize MTProto:', error.message);
       } finally {
+        console.log('[App] Setting isLoading to false');
         setIsLoading(false);
       }
     };
@@ -129,6 +154,11 @@ function App() {
         </div>
       </div>
     );
+  }
+
+  // Check if credentials are configured
+  if (!mtprotoService.hasCredentials()) {
+    return <SetupScreen />;
   }
 
   if (!isAuthenticated) {

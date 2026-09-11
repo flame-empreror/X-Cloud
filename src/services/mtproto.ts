@@ -19,10 +19,18 @@ class MTProtoService {
   private client: TelegramClient | null = null;
   private isAuthenticated: boolean = false;
 
+  hasCredentials(): boolean {
+    return !!API_ID && !!API_HASH;
+  }
+
   async initialize(): Promise<void> {
-    if (!API_ID || !API_HASH) {
+    if (!this.hasCredentials()) {
       throw new Error('Telegram API credentials not configured. Please set VITE_TELEGRAM_API_ID and VITE_TELEGRAM_API_HASH in your .env file');
     }
+
+    console.log('[MTProto] Creating client with API credentials...');
+    console.log('[MTProto] API_ID:', API_ID);
+    console.log('[MTProto] API_HASH:', API_HASH.substring(0, 5) + '...');
 
     this.client = new TelegramClient({
       apiId: API_ID,
@@ -30,13 +38,31 @@ class MTProtoService {
       storage: 'telecloud-session', // Uses IndexedDB
     });
 
-    await this.client.connect();
+    console.log('[MTProto] Connecting to Telegram...');
+    
+    // Add timeout to connect
+    const connectTimeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Connection timeout')), 15000)
+    );
+    
+    await Promise.race([
+      this.client.connect(),
+      connectTimeout
+    ]);
+    
+    console.log('[MTProto] Connected successfully');
     
     // Check if already logged in
     try {
+      console.log('[MTProto] Checking if user is logged in...');
       const me = await this.client.getMe();
       this.isAuthenticated = !!me;
-    } catch {
+      console.log('[MTProto] Authenticated:', this.isAuthenticated);
+      if (me) {
+        console.log('[MTProto] Logged in as:', me.firstName || me.username);
+      }
+    } catch (error: any) {
+      console.log('[MTProto] Not logged in or error checking auth:', error.message);
       this.isAuthenticated = false;
     }
   }
