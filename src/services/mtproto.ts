@@ -309,10 +309,32 @@ class MTProtoService {
     if (!this.client) throw new Error('Client not initialized');
 
     console.log('[MTProto] Downloading media from message:', message.id);
+    console.log('[MTProto] Message media:', message.media);
     
-    // The message object contains all the necessary information for downloading
-    // including the DC ID, access hash, and file reference
-    const buffer = await this.client.downloadAsBuffer(message);
+    // Extract the media object from the message
+    // The media object contains the document/photo with all necessary download info
+    const media = message.media;
+    
+    if (!media) {
+      throw new Error('Message has no media');
+    }
+    
+    console.log('[MTProto] Media type:', media._);
+    
+    // For documents, we need to pass the document object to downloadAsBuffer
+    // The document object contains the file ID, access hash, and other metadata
+    let downloadTarget = media;
+    
+    if (media._ === 'messageMediaDocument' && media.document) {
+      console.log('[MTProto] Downloading document:', media.document.id);
+      downloadTarget = media.document;
+    } else if (media._ === 'messageMediaPhoto' && media.photo) {
+      console.log('[MTProto] Downloading photo:', media.photo.id);
+      downloadTarget = media.photo;
+    }
+    
+    // Download using the correct target (document or photo object)
+    const buffer = await this.client.downloadAsBuffer(downloadTarget);
     
     console.log('[MTProto] Download complete, buffer size:', buffer.length);
     return new Blob([buffer as any]);
