@@ -311,8 +311,6 @@ class MTProtoService {
     console.log('[MTProto] Downloading media from message:', message.id);
     console.log('[MTProto] Message media:', message.media);
     
-    // Extract the media object from the message
-    // The media object contains the document/photo with all necessary download info
     const media = message.media;
     
     if (!media) {
@@ -321,19 +319,42 @@ class MTProtoService {
     
     console.log('[MTProto] Media type:', media._);
     
-    // For documents, we need to pass the document object to downloadAsBuffer
-    // The document object contains the file ID, access hash, and other metadata
+    // Convert serialized Long objects back to proper Long objects
+    // The raw API returns {low, high, unsigned} objects instead of Long instances
+    const convertLong = (obj: any): any => {
+      if (obj && typeof obj === 'object' && 'low' in obj && 'high' in obj) {
+        return Long.fromValue({ low: obj.low, high: obj.high, unsigned: obj.unsigned || false });
+      }
+      return obj;
+    };
+    
+    // Convert all Long objects in the media/document
     let downloadTarget = media;
     
     if (media._ === 'messageMediaDocument' && media.document) {
-      console.log('[MTProto] Downloading document:', media.document.id);
-      downloadTarget = media.document;
+      const doc = { ...media.document };
+      
+      // Convert Long properties
+      if (doc.id) doc.id = convertLong(doc.id);
+      if (doc.accessHash) doc.accessHash = convertLong(doc.accessHash);
+      if (doc.fileReference) {
+        // fileReference is Uint8Array, no conversion needed
+      }
+      
+      console.log('[MTProto] Downloading document with converted Long objects:', doc.id);
+      downloadTarget = doc;
     } else if (media._ === 'messageMediaPhoto' && media.photo) {
-      console.log('[MTProto] Downloading photo:', media.photo.id);
-      downloadTarget = media.photo;
+      const photo = { ...media.photo };
+      
+      // Convert Long properties
+      if (photo.id) photo.id = convertLong(photo.id);
+      if (photo.accessHash) photo.accessHash = convertLong(photo.accessHash);
+      
+      console.log('[MTProto] Downloading photo with converted Long objects:', photo.id);
+      downloadTarget = photo;
     }
     
-    // Download using the correct target (document or photo object)
+    // Download using the converted object with proper Long objects
     const buffer = await this.client.downloadAsBuffer(downloadTarget);
     
     console.log('[MTProto] Download complete, buffer size:', buffer.length);
