@@ -22,19 +22,46 @@ export default function ChannelSelect({ onChatSelect }: ChannelSelectProps) {
     setError('');
 
     try {
-      const dialogs = await mtprotoService.getDialogs();
+      const response = await mtprotoService.getDialogs();
+      const { dialogs, chats, channels } = response;
       
-      // Filter only groups and channels
+      // Create a map of chat/channel IDs to their info
+      const chatMap = new Map<number, any>();
+      
+      // Add regular chats
+      chats.forEach((chat: any) => {
+        chatMap.set(chat.id, {
+          title: chat.title || 'Unknown Chat',
+          type: 'group' as const,
+        });
+      });
+      
+      // Add channels
+      channels.forEach((channel: any) => {
+        chatMap.set(channel.id, {
+          title: channel.title || 'Unknown Channel',
+          type: 'channel' as const,
+        });
+      });
+      
+      // Filter and map dialogs to TelegramChat objects
       const groups: TelegramChat[] = dialogs
         .filter((d: any) => {
           const peer = d.peer;
           return peer._ === 'peerChat' || peer._ === 'peerChannel';
         })
-        .map((d: any) => ({
-          id: d.peer.chat_id || d.peer.channel_id,
-          title: d.title || 'Unknown',
-          type: (d.peer._ === 'peerChannel' ? 'channel' : 'group') as 'channel' | 'group',
-        }));
+        .map((d: any) => {
+          const peer = d.peer;
+          const chatId = peer.chat_id || peer.channel_id;
+          const chatInfo = chatMap.get(chatId);
+          
+          return {
+            id: chatId,
+            title: chatInfo?.title || 'Unknown',
+            type: chatInfo?.type || (peer._ === 'peerChannel' ? 'channel' : 'group') as 'channel' | 'group',
+          };
+        })
+        .filter((chat: TelegramChat) => chat.title !== 'Unknown'); // Filter out unknown chats
 
       setChats(groups);
     } catch (err: any) {

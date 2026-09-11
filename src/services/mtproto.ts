@@ -119,7 +119,7 @@ class MTProtoService {
     return await this.client.getMe();
   }
 
-  async getDialogs(): Promise<any[]> {
+  async getDialogs(): Promise<any> {
     if (!this.client) throw new Error('Client not initialized');
 
     // Use raw API call for getDialogs
@@ -130,13 +130,22 @@ class MTProtoService {
       offsetId: 0,
       offsetPeer: { _: 'inputPeerEmpty' as const },
       hash: { _: 'long', value: BigInt(0) } as any,
-    });
+    }) as any;
 
+    // Return the full structure including chats and channels arrays
     if (result._ === 'messages.dialogs' || result._ === 'messages.dialogsSlice') {
-      return result.dialogs;
+      return {
+        dialogs: result.dialogs || [],
+        chats: result.chats || [],
+        channels: result.channels || [],
+      };
     }
 
-    return [];
+    return {
+      dialogs: [],
+      chats: [],
+      channels: [],
+    };
   }
 
   async getChatHistory(peer: any, limit: number = 100): Promise<any[]> {
