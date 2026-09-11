@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu } from 'lucide-react';
 import { useAppStore } from './store';
-import telegramService from './services/telegram';
-import { fileSystemService } from './services/filesystem';
-import { StorageService } from './services/storage';
-import LoginScreen from './components/LoginScreen';
+import { telegramMTProto } from './services/telegram-mtproto';
+import LoginScreenMTProto from './components/LoginScreenMTProto';
+import ChannelSelect from './components/ChannelSelect';
 import Sidebar from './components/Sidebar';
 import FileManager from './components/FileManager';
 import TransfersPanel from './components/TransfersPanel';
@@ -14,36 +13,41 @@ import MediaViewer from './components/MediaViewer';
 import { FileItem } from './types';
 
 function App() {
-  const { isAuthenticated, selectedChannel, files, botToken, activeTab, setActiveTab, setFiles } = useAppStore();
+  const { isAuthenticated, selectedChannel, files, activeTab, setActiveTab, setFiles, setAuthenticated } = useAppStore();
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // CRITICAL: Initialize telegram service with bot token on app load
+  // Initialize MTProto client on app load
   useEffect(() => {
-    if (botToken && isAuthenticated) {
-      telegramService.setBotToken(botToken);
-    }
-  }, [botToken, isAuthenticated]);
-
-  // Load files from localStorage on startup
-  useEffect(() => {
-    if (isAuthenticated && selectedChannel && files.length === 0) {
-      console.log('[App] Loading files from localStorage...');
-      const savedFiles = StorageService.loadFiles();
-      if (savedFiles.length > 0) {
-        console.log('[App] Loaded', savedFiles.length, 'files from localStorage');
-        setFiles(savedFiles);
+    const init = async () => {
+      try {
+        await telegramMTProto.initialize();
+        const loggedIn = await telegramMTProto.isLoggedIn();
+        if (loggedIn) {
+          setAuthenticated(true);
+        }
+      } catch (error) {
+        console.error('Failed to initialize MTProto:', error);
+      } finally {
+        setIsLoading(false);
       }
-    }
-  }, [isAuthenticated, selectedChannel]);
+    };
+    
+    init();
+  }, [setAuthenticated]);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     setMobileSidebarOpen(false);
   };
 
-  if (!isAuthenticated || !selectedChannel) {
-    return <LoginScreen />;
+  if (!isAuthenticated) {
+    return <LoginScreenMTProto onLoginSuccess={() => setAuthenticated(true)} />;
+  }
+
+  if (!selectedChannel) {
+    return <ChannelSelect onSelect={() => {}} />;
   }
 
   return (
