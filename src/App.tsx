@@ -35,7 +35,15 @@ export default function App() {
           if (savedChat) {
             try {
               const chat = JSON.parse(savedChat);
+              
+              // Restore BigInt values from strings
+              if (chat.inputPeer) {
+                chat.inputPeer.accessHash = BigInt(chat.inputPeer.accessHash || '0');
+                chat.inputPeer.channelId = BigInt(chat.inputPeer.channelId || '0');
+              }
+              
               console.log('[App] Restored selected chat:', chat);
+              console.log('[App] Restored inputPeer:', chat.inputPeer);
               setSelectedChat(chat);
             } catch (e) {
               console.error('[App] Failed to parse saved chat:', e);
@@ -62,9 +70,22 @@ export default function App() {
 
   const handleChatSelect = (chat: TelegramChat) => {
     console.log('[App] Chat selected:', chat);
+    console.log('[App] Chat inputPeer:', chat.inputPeer);
     setSelectedChat(chat);
-    // Save selected chat to localStorage
-    localStorage.setItem('telecloud_selected_chat', JSON.stringify(chat));
+    
+    // Save selected chat to localStorage with BigInt handling
+    const chatToSave = {
+      ...chat,
+      inputPeer: chat.inputPeer ? {
+        _: chat.inputPeer._,
+        // Convert BigInt to string for JSON serialization
+        accessHash: chat.inputPeer.accessHash?.toString() || '0',
+        channelId: chat.inputPeer.channelId?.toString() || '0',
+      } : null
+    };
+    
+    localStorage.setItem('telecloud_selected_chat', JSON.stringify(chatToSave));
+    console.log('[App] Saved chat to localStorage:', chatToSave);
   };
 
   const handleLogout = async () => {
