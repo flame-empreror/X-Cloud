@@ -4,6 +4,7 @@ import LoginScreenMTProto from './components/LoginScreenMTProto';
 import ChannelSelect from './components/ChannelSelect';
 import FileManager from './components/FileManager';
 import { FileItem, TelegramChat } from './types';
+import { Long } from '@mtcute/core';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -36,12 +37,12 @@ export default function App() {
             try {
               const chat = JSON.parse(savedChat);
               
-              // Don't convert to BigInt - the high-level API will handle conversions
-              // Just ensure the inputPeer structure is preserved
+              // Restore the inputPeer with proper Long object conversion
               if (chat.inputPeer) {
                 chat.inputPeer = {
                   _: chat.inputPeer._ || 'inputPeerChannel',
-                  accessHash: chat.inputPeer.accessHash,
+                  // Convert string back to Long object
+                  accessHash: Long.fromString(chat.inputPeer.accessHash || '0'),
                   channelId: chat.inputPeer.channelId,
                 };
               }
@@ -78,12 +79,13 @@ export default function App() {
     setSelectedChat(chat);
     
     // Save selected chat to localStorage
-    // Don't convert BigInt - just save the values as-is
+    // Convert Long objects to strings for proper serialization
     const chatToSave = {
       ...chat,
       inputPeer: chat.inputPeer ? {
         _: chat.inputPeer._,
-        accessHash: chat.inputPeer.accessHash,
+        // Convert Long object to string for JSON serialization
+        accessHash: chat.inputPeer.accessHash?.toString() || '0',
         channelId: chat.inputPeer.channelId,
       } : null
     };
