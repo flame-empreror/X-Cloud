@@ -29,6 +29,18 @@ export default function App() {
         if (mtprotoService.isLoggedIn()) {
           console.log('[App] User is already logged in');
           setIsAuthenticated(true);
+          
+          // Restore selected chat from localStorage
+          const savedChat = localStorage.getItem('telecloud_selected_chat');
+          if (savedChat) {
+            try {
+              const chat = JSON.parse(savedChat);
+              console.log('[App] Restored selected chat:', chat);
+              setSelectedChat(chat);
+            } catch (e) {
+              console.error('[App] Failed to parse saved chat:', e);
+            }
+          }
         } else {
           console.log('[App] User is not logged in');
         }
@@ -51,6 +63,8 @@ export default function App() {
   const handleChatSelect = (chat: TelegramChat) => {
     console.log('[App] Chat selected:', chat);
     setSelectedChat(chat);
+    // Save selected chat to localStorage
+    localStorage.setItem('telecloud_selected_chat', JSON.stringify(chat));
   };
 
   const handleLogout = async () => {
@@ -60,6 +74,8 @@ export default function App() {
       setSelectedChat(null);
       setFiles([]);
       setError(null);
+      // Clear saved chat from localStorage
+      localStorage.removeItem('telecloud_selected_chat');
     } catch (error) {
       console.error('[App] Logout failed:', error);
     }

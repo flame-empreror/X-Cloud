@@ -29,14 +29,19 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
       console.log('[FileManager] Loading chat history...');
       const messages = await mtprotoService.getMessages(chat.id, 100);
       
+      console.log('[FileManager] Retrieved', messages.length, 'messages');
+      
       const loadedFiles: FileItem[] = [];
       
       for (const msg of messages) {
-        // Check if message has our metadata prefix
-        const caption = msg.message || '';
+        console.log('[FileManager] Processing message:', msg.id, 'text:', msg.text);
+        
+        // Check if message has our metadata prefix in the text/caption
+        const caption = msg.text || '';
         if (caption.startsWith('__TCLOUD_V1__')) {
           try {
             const metadata = JSON.parse(caption.substring('__TCLOUD_V1__'.length));
+            console.log('[FileManager] Parsed metadata:', metadata);
             
             const fileItem: FileItem = {
               id: msg.id.toString(),
@@ -48,13 +53,13 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
               extension: metadata.extension || '',
               telegramMessageId: msg.id,
               telegramFileId: msg.media ? (msg.media as any).document?.id?.toString() : undefined,
-              createdAt: metadata.createdAt || msg.date * 1000,
-              modifiedAt: msg.date * 1000,
+              createdAt: metadata.createdAt || new Date(msg.date).getTime(),
+              modifiedAt: new Date(msg.date).getTime(),
             };
             
             loadedFiles.push(fileItem);
           } catch (e) {
-            console.error('Failed to parse file metadata:', e);
+            console.error('[FileManager] Failed to parse file metadata:', e, 'caption:', caption);
           }
         }
       }
@@ -106,7 +111,13 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
 
         const caption = `__TCLOUD_V1__${JSON.stringify(metadata)}`;
 
-        const result = await mtprotoService.sendFile(chat.id, file, caption);
+        const result = await mtprotoService.sendFile(chat.id, file, caption, (progress) => {
+          setTransfers(prev => prev.map(t => 
+            t.id === transferId 
+              ? { ...t, progress, transferred: Math.round(file.size * progress / 100) }
+              : t
+          ));
+        });
 
         const newFile: FileItem = {
           id: result.id.toString(),

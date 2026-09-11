@@ -188,13 +188,40 @@ class MTProtoService {
     return await this.client.sendText(peer, text);
   }
 
-  async sendFile(peer: any, file: File, caption: string): Promise<any> {
+  async sendFile(peer: any, file: File, caption: string, onProgress?: (progress: number) => void): Promise<any> {
     if (!this.client) throw new Error('Client not initialized');
 
-    // Use sendMedia with InputMedia
-    return await this.client.sendMedia(peer, InputMedia.auto(file, {
-      caption,
-    }));
+    // Track upload progress
+    const totalSize = file.size;
+    let uploadedSize = 0;
+    const startTime = Date.now();
+
+    // Simulate progress updates during upload
+    const progressInterval = setInterval(() => {
+      if (onProgress && uploadedSize < totalSize) {
+        // Estimate progress based on time elapsed
+        const elapsed = Date.now() - startTime;
+        const estimatedProgress = Math.min(95, (elapsed / 5000) * 100); // Assume 5 second upload
+        onProgress(estimatedProgress);
+      }
+    }, 100);
+
+    try {
+      // Use sendMedia with InputMedia
+      const result = await this.client.sendMedia(peer, InputMedia.auto(file, {
+        caption,
+      }));
+
+      clearInterval(progressInterval);
+      if (onProgress) {
+        onProgress(100);
+      }
+
+      return result;
+    } catch (error) {
+      clearInterval(progressInterval);
+      throw error;
+    }
   }
 
   async downloadMedia(media: any): Promise<Blob> {
