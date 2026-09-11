@@ -132,17 +132,31 @@ class MTProtoService {
         limit: 100,
       })) {
         console.log('[MTProto] Got dialog:', dialog);
-        console.log('[MTProto] Dialog keys:', Object.keys(dialog));
-        console.log('[MTProto] Full dialog object:', JSON.stringify(dialog, null, 2));
         
-        // Access properties dynamically
+        // The dialog object has a 'peer' property that contains the actual chat/channel info
         const d = dialog as any;
+        const peer = d.peer || {};
+        
+        console.log('[MTProto] Peer info:', {
+          id: peer.id,
+          title: peer.title,
+          chatType: peer.chatType,
+          isGroup: peer.isGroup,
+        });
+        
+        // Determine the type based on peer properties
+        let type = 'chat';
+        if (peer.chatType === 'channel' || peer.chatType === 'supergroup') {
+          type = peer.isGroup ? 'group' : 'channel';
+        } else if (peer.isGroup) {
+          type = 'group';
+        }
         
         dialogs.push({
-          id: d.id || d.entity?.id || d.peer?.id,
-          title: d.title || d.entity?.title || 'Unknown',
-          type: d.isChannel ? 'channel' : d.isGroup ? 'group' : d.entity?.className === 'Channel' ? 'channel' : d.entity?.className === 'Chat' ? 'group' : 'chat',
-          peer: d.inputPeer || d.peer,
+          id: peer.id,
+          title: peer.title || 'Unknown',
+          type: type,
+          peer: peer.inputPeer || peer,
         });
       }
 
