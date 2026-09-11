@@ -38,13 +38,23 @@ class TelegramMTProtoService {
   }
 
   async initialize(): Promise<void> {
+    console.log('[MTProto] Initializing...');
+    
+    // Check if API credentials are set
+    if (!API_ID || !API_HASH || API_HASH === 'b1c5e3b87a2e7c9d0f1a2b3c4d5e6f7') {
+      throw new Error('API credentials not configured. Please update API_ID and API_HASH in src/services/telegram-mtproto.ts');
+    }
+    
     // Load session from localStorage if exists
     const savedSession = localStorage.getItem('telegram_session');
     this.session = new StringSession(savedSession || '');
     
     this.client = new TelegramClient(this.session, API_ID, API_HASH, {
-      connectionRetries: 5,
+      connectionRetries: 3,
+      timeout: 5000,
     });
+    
+    console.log('[MTProto] Client created');
   }
 
   async connect(): Promise<boolean> {
@@ -53,21 +63,36 @@ class TelegramMTProtoService {
     }
 
     try {
-      await this.client.connect();
+      console.log('[MTProto] Connecting...');
+      await Promise.race([
+        this.client.connect(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Connection timeout')), 10000))
+      ]);
+      console.log('[MTProto] Connected successfully');
       return true;
-    } catch (error) {
-      console.error('Failed to connect:', error);
+    } catch (error: any) {
+      console.error('[MTProto] Failed to connect:', error.message);
       return false;
     }
   }
 
   async isLoggedIn(): Promise<boolean> {
-    if (!this.client) return false;
+    if (!this.client) {
+      console.log('[MTProto] No client, not logged in');
+      return false;
+    }
     
     try {
-      const me = await this.client.getMe();
-      return !!me;
-    } catch {
+      console.log('[MTProto] Checking if logged in...');
+      const me = await Promise.race([
+        this.client.getMe(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+      ]);
+      const loggedIn = !!me;
+      console.log('[MTProto] Logged in:', loggedIn);
+      return loggedIn;
+    } catch (error: any) {
+      console.log('[MTProto] Not logged in or error:', error.message);
       return false;
     }
   }
