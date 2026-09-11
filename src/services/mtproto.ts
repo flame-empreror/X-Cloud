@@ -182,13 +182,28 @@ class MTProtoService {
     console.log('[MTProto] getMessages called for chatId:', chatId, 'limit:', limit);
     
     try {
-      // Always use just the chat ID - the high-level API will resolve the peer automatically
-      // This avoids issues with malformed inputPeer objects
-      console.log('[MTProto] Using chatId:', chatId);
+      // Use raw API call to fetch messages with limit
+      // This is the most reliable way to get messages from a channel
+      const result = await this.client.call({
+        _: 'messages.getHistory',
+        peer: {
+          _: 'inputPeerChannel',
+          channelId: Math.abs(chatId),
+          accessHash: inputPeer?.accessHash || 0
+        },
+        offsetId: 0,
+        offsetDate: 0,
+        addOffset: 0,
+        limit: limit,
+        maxId: 0,
+        minId: 0,
+        hash: Long.fromNumber(0)
+      });
       
-      // Get messages using the high-level API with just the chat ID
-      // Returns (Message | null)[] - array that can contain null values
-      const messagesArray = await this.client.getMessages(chatId, limit);
+      console.log('[MTProto] getHistory result type:', result._);
+      
+      // Extract messages from the result
+      const messagesArray = (result as any).messages || [];
       
       console.log('[MTProto] Raw response type:', typeof messagesArray);
       console.log('[MTProto] Raw response is array:', Array.isArray(messagesArray));
@@ -198,7 +213,7 @@ class MTProtoService {
       console.log('[MTProto] Raw messages array:', messagesArray);
       
       // Filter out null/undefined values and log what we're filtering
-      const validMessages = messagesArray.filter((msg, idx) => {
+      const validMessages = messagesArray.filter((msg: any, idx: number) => {
         const isValid = msg !== null && msg !== undefined && msg.id !== undefined;
         if (!isValid) {
           console.log(`[MTProto] Filtering out null/invalid message at index ${idx}:`, msg);
