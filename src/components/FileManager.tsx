@@ -58,14 +58,11 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
             const metadata = JSON.parse(jsonStr);
             console.log('[FileManager] Parsed metadata:', metadata);
             
-            // Extract file ID and document from media
+            // Extract file ID and store the entire message object for downloading
             let fileId: string | undefined;
-            let document: any;
             if (msg.media && msg.media._ === 'messageMediaDocument') {
               fileId = msg.media.document?.id?.toString();
-              document = msg.media.document; // Store the complete document object
               console.log('[FileManager] File ID:', fileId);
-              console.log('[FileManager] Document:', document);
             }
             
             const fileItem: FileItem = {
@@ -78,7 +75,7 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
               extension: metadata.extension || '',
               telegramMessageId: msg.id,
               telegramFileId: fileId,
-              telegramDocument: document, // Store the complete document
+              telegramMessage: msg, // Store the entire message object for downloading
               createdAt: metadata.createdAt || (msg.date ? msg.date * 1000 : Date.now()),
               modifiedAt: msg.date ? msg.date * 1000 : Date.now(),
             };
@@ -159,7 +156,7 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
           extension: file.name.split('.').pop() || '',
           telegramMessageId: result.id,
           telegramFileId: result.media?.document?.id?.toString(),
-          telegramDocument: result.media?.document, // Store the document object
+          telegramMessage: result, // Store the entire message object
           createdAt: Date.now(),
           modifiedAt: Date.now(),
         };
@@ -200,12 +197,12 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
 
     try {
       console.log('[FileManager] Starting download for file:', file.name);
-      console.log('[FileManager] File document:', file.telegramDocument);
+      console.log('[FileManager] File message:', file.telegramMessage);
       
-      // Use the stored document object if available
-      if (file.telegramDocument) {
-        console.log('[FileManager] Using stored document for download');
-        const blob = await mtprotoService.downloadMedia(file.telegramDocument);
+      // Use the stored message object if available
+      if (file.telegramMessage) {
+        console.log('[FileManager] Using stored message for download');
+        const blob = await mtprotoService.downloadMedia(file.telegramMessage);
         
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -217,7 +214,7 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
         URL.revokeObjectURL(url);
       } else {
         // Fallback: fetch the message again
-        console.log('[FileManager] Document not stored, fetching message');
+        console.log('[FileManager] Message not stored, fetching message');
         const messages = await mtprotoService.getMessages(chat.id, 100, chat.inputPeer);
         const message = messages.find((m: any) => m.id === file.telegramMessageId);
         
@@ -225,7 +222,7 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
           throw new Error('File not found');
         }
 
-        const blob = await mtprotoService.downloadMedia(message.media);
+        const blob = await mtprotoService.downloadMedia(message);
         
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');

@@ -182,41 +182,22 @@ class MTProtoService {
     console.log('[MTProto] getMessages called for chatId:', chatId, 'limit:', limit);
     
     try {
-      // Use raw messages.getHistory API call for reliable message retrieval
-      const peer = inputPeer || {
-        _: 'inputPeerChannel',
-        channelId: Math.abs(chatId),
-        accessHash: BigInt(0) // Will be resolved by the library
-      };
+      // Use the high-level getMessages method which handles BigInt/Long conversions internally
+      // This avoids the "can't convert BigInt to number" error
+      const peer = inputPeer || chatId;
       
       console.log('[MTProto] Using peer:', peer);
       
-      const result = await this.client.call({
-        _: 'messages.getHistory',
-        peer: peer,
-        offsetId: 0,
-        offsetDate: 0,
-        addOffset: 0,
-        limit: limit,
-        maxId: 0,
-        minId: 0,
-        hash: Long.fromNumber(0)
-      });
+      // Get messages using the high-level API
+      const messages = await this.client.getMessages(peer, limit);
       
-      console.log('[MTProto] getHistory result type:', result._);
+      console.log('[MTProto] Retrieved', messages.length, 'messages');
       
-      // Extract messages from the result
-      // Result can be: messages.messages, messages.messagesSlice, or messages.channelMessages
-      let messages: any[] = [];
-      
-      if (result._ === 'messages.messages' || result._ === 'messages.messagesSlice' || result._ === 'messages.channelMessages') {
-        messages = result.messages || [];
-      }
-      
-      console.log('[MTProto] Extracted', messages.length, 'messages');
+      // Convert MessageCollection to array if needed
+      const messagesArray = Array.isArray(messages) ? messages : Array.from(messages || []);
       
       // Filter out null/undefined and log first few messages
-      const validMessages = messages.filter(msg => msg !== null && msg !== undefined);
+      const validMessages = messagesArray.filter(msg => msg !== null && msg !== undefined);
       
       console.log('[MTProto] Valid messages count:', validMessages.length);
       
@@ -224,10 +205,9 @@ class MTProtoService {
       validMessages.slice(0, 3).forEach((msg: any, idx: number) => {
         console.log(`[MTProto] Message ${idx + 1}:`, {
           id: msg.id,
-          _: msg._,
-          message: msg.message?.substring(0, 100),
+          text: msg.text?.substring(0, 100),
           hasMedia: !!msg.media,
-          mediaType: msg.media?._
+          mediaType: msg.media?.type
         });
       });
       
@@ -280,10 +260,16 @@ class MTProtoService {
     }
   }
 
-  async downloadMedia(media: any): Promise<Blob> {
+  async downloadMedia(message: any): Promise<Blob> {
     if (!this.client) throw new Error('Client not initialized');
 
-    const buffer = await this.client.downloadAsBuffer(media);
+    console.log('[MTProto] Downloading media from message:', message.id);
+    
+    // The message object contains all the necessary information for downloading
+    // including the DC ID, access hash, and file reference
+    const buffer = await this.client.downloadAsBuffer(message);
+    
+    console.log('[MTProto] Download complete, buffer size:', buffer.length);
     return new Blob([buffer as any]);
   }
 

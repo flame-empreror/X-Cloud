@@ -36,12 +36,13 @@ export default function App() {
             try {
               const chat = JSON.parse(savedChat);
               
-              // Restore BigInt values from strings and ensure proper structure
+              // Don't convert to BigInt - the high-level API will handle conversions
+              // Just ensure the inputPeer structure is preserved
               if (chat.inputPeer) {
                 chat.inputPeer = {
                   _: chat.inputPeer._ || 'inputPeerChannel',
-                  accessHash: BigInt(chat.inputPeer.accessHash || '0'),
-                  channelId: BigInt(chat.inputPeer.channelId || '0'),
+                  accessHash: chat.inputPeer.accessHash,
+                  channelId: chat.inputPeer.channelId,
                 };
               }
               
@@ -76,14 +77,14 @@ export default function App() {
     console.log('[App] Chat inputPeer:', chat.inputPeer);
     setSelectedChat(chat);
     
-    // Save selected chat to localStorage with BigInt handling
+    // Save selected chat to localStorage
+    // Don't convert BigInt - just save the values as-is
     const chatToSave = {
       ...chat,
       inputPeer: chat.inputPeer ? {
         _: chat.inputPeer._,
-        // Convert BigInt to string for JSON serialization
-        accessHash: chat.inputPeer.accessHash?.toString() || '0',
-        channelId: chat.inputPeer.channelId?.toString() || '0',
+        accessHash: chat.inputPeer.accessHash,
+        channelId: chat.inputPeer.channelId,
       } : null
     };
     
