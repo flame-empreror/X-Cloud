@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { telegramMTProto } from '../services/telegram-mtproto';
+import { motion } from 'framer-motion';
+import { Users, Hash, MessageSquare, ArrowLeft } from 'lucide-react';
+import { mtprotoService } from '../services/mtproto';
 import { useAppStore } from '../store';
-import { Loader2, Users, Hash, MessageSquare } from 'lucide-react';
 
 interface ChannelSelectProps {
   onSelect: () => void;
@@ -9,7 +10,7 @@ interface ChannelSelectProps {
 
 export default function ChannelSelect({ onSelect }: ChannelSelectProps) {
   const [chats, setChats] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { setSelectedChannel } = useAppStore();
 
@@ -18,16 +19,29 @@ export default function ChannelSelect({ onSelect }: ChannelSelectProps) {
   }, []);
 
   const loadChats = async () => {
-    setIsLoading(true);
+    setLoading(true);
     setError('');
-    
+
     try {
-      const chatList = await telegramMTProto.getChats();
-      setChats(chatList);
+      const dialogs = await mtprotoService.getDialogs();
+      
+      // Filter only groups and channels
+      const groups = dialogs
+        .filter((d: any) => {
+          const peer = d.peer;
+          return peer._ === 'peerChat' || peer._ === 'peerChannel';
+        })
+        .map((d: any) => ({
+          id: d.peer.chat_id || d.peer.channel_id,
+          title: d.title || 'Unknown',
+          type: d.peer._ === 'peerChannel' ? 'channel' : 'group',
+        }));
+
+      setChats(groups);
     } catch (err: any) {
       setError(err.message || 'Failed to load chats');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -56,9 +70,9 @@ export default function ChannelSelect({ onSelect }: ChannelSelectProps) {
             <p className="text-gray-400">Choose a group or channel to use as your cloud storage</p>
           </div>
 
-          {isLoading && (
+          {loading && (
             <div className="flex flex-col items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-4" />
+              <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
               <p className="text-gray-400">Loading your chats...</p>
             </div>
           )}
@@ -75,7 +89,7 @@ export default function ChannelSelect({ onSelect }: ChannelSelectProps) {
             </div>
           )}
 
-          {!isLoading && !error && (
+          {!loading && !error && (
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {chats.length === 0 ? (
                 <div className="text-center py-12">
@@ -86,8 +100,10 @@ export default function ChannelSelect({ onSelect }: ChannelSelectProps) {
                 </div>
               ) : (
                 chats.map((chat) => (
-                  <button
+                  <motion.button
                     key={chat.id}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => handleSelect(chat)}
                     className="w-full bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-4 transition-all flex items-center gap-4 text-left"
                   >
@@ -96,12 +112,9 @@ export default function ChannelSelect({ onSelect }: ChannelSelectProps) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-white font-semibold truncate">{chat.title}</p>
-                      {chat.username && (
-                        <p className="text-gray-400 text-sm">@{chat.username}</p>
-                      )}
                       <p className="text-gray-500 text-xs capitalize">{chat.type}</p>
                     </div>
-                  </button>
+                  </motion.button>
                 ))
               )}
             </div>

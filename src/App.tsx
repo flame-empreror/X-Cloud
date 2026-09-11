@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu } from 'lucide-react';
 import { useAppStore } from './store';
-import { telegramMTProto } from './services/telegram-mtproto';
+import { mtprotoService } from './services/mtproto';
 import LoginScreenMTProto from './components/LoginScreenMTProto';
 import ChannelSelect from './components/ChannelSelect';
 import Sidebar from './components/Sidebar';
@@ -22,23 +22,12 @@ function App() {
   useEffect(() => {
     const init = async () => {
       try {
-        // Add timeout to prevent hanging
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Initialization timeout')), 5000)
-        );
-        
-        await Promise.race([
-          telegramMTProto.initialize(),
-          timeoutPromise
-        ]);
-        
-        const loggedIn = await telegramMTProto.isLoggedIn();
-        if (loggedIn) {
+        await mtprotoService.initialize();
+        if (mtprotoService.isLoggedIn()) {
           setAuthenticated(true);
         }
       } catch (error) {
         console.error('Failed to initialize MTProto:', error);
-        // Still show login screen even if init fails
       } finally {
         setIsLoading(false);
       }
@@ -46,6 +35,79 @@ function App() {
     
     init();
   }, [setAuthenticated]);
+
+  // Load files from Telegram chat history when channel is selected
+  useEffect(() => {
+    const loadFiles = async () => {
+      if (isAuthenticated && selectedChannel && files.length === 0) {
+        try {
+          console.log('[App] Loading files from Telegram chat history...');
+          const messages = await mtprotoService.getChatHistory(selectedChannel.id, 100);
+          
+          // Parse messages to extract files
+          const parsedFiles: FileItem[] = messages
+            .filter((msg: any) => msg.media || (msg.text && msg.text.startsWith('__TCLOUD_V1__')))
+            .map((msg: any) => {
+              if (msg.text && msg.text.startsWith('__TCLOUD_V1__')) {
+                // Folder
+                try {
+                  const meta = JSON.parse(msg.text.substring('__TCLOUD_V1__'.length));
+                  return {
+                    id: `folder_${msg.id}`,
+                    name: meta.name,
+                    path: meta.path || '/',
+                    size: 0,
+                    type: 'folder' as const,
+                    mimeType: 'folder',
+                    extension: '',
+                    telegramMessageId: msg.id,
+                    createdAt: msg.date * 1000,
+                    modifiedAt: msg.date * 1000,
+                  };
+                } catch (e) {
+                  return null;
+                }
+              } else if (msg.media) {
+                // File
+                const caption = msg.text || '';
+                let meta = { name: 'Unknown', path: '/', size: 0, mimeType: '', extension: '', createdAt: msg.date * 1000 };
+                
+                if (caption.startsWith('__TCLOUD_V1__')) {
+                  try {
+                    meta = JSON.parse(caption.substring('__TCLOUD_V1__'.length));
+                  } catch (e) {
+                    console.error('Failed to parse file metadata:', e);
+                  }
+                }
+                
+                return {
+                  id: `file_${msg.id}`,
+                  name: meta.name || 'Unknown',
+                  path: meta.path || '/',
+                  size: meta.size || 0,
+                  type: 'file' as const,
+                  mimeType: meta.mimeType || '',
+                  extension: meta.extension || '',
+                  telegramMessageId: msg.id,
+                  telegramFileId: msg.media.fileId || msg.media.document?.id,
+                  createdAt: meta.createdAt || msg.date * 1000,
+                  modifiedAt: msg.date * 1000,
+                };
+              }
+              return null;
+            })
+            .filter(Boolean) as FileItem[];
+          
+          console.log('[App] Loaded', parsedFiles.length, 'files from Telegram');
+          setFiles(parsedFiles);
+        } catch (error) {
+          console.error('[App] Failed to load files:', error);
+        }
+      }
+    };
+    
+    loadFiles();
+  }, [isAuthenticated, selectedChannel]);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);

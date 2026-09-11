@@ -1,55 +1,37 @@
-import { useState, useRef, useEffect } from 'react';
-import { telegramMTProto } from '../services/telegram-mtproto';
-import { QrCode, Phone, ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Phone, QrCode, ArrowLeft } from 'lucide-react';
+import { mtprotoService } from '../services/mtproto';
+import QRCode from 'qrcode';
 
 interface LoginScreenProps {
   onLoginSuccess: () => void;
 }
 
 export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
-  const [loginMethod, setLoginMethod] = useState<'qr' | 'phone' | 'phone-code' | null>(null);
+  const [step, setStep] = useState<'method' | 'phone' | 'code' | 'qr'>('method');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [phoneCode, setPhoneCode] = useState('');
   const [phoneCodeHash, setPhoneCodeHash] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [code, setCode] = useState('');
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [qrCodeImage, setQrCodeImage] = useState('');
   const [error, setError] = useState('');
-  const qrCodeRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Initialize MTProto client
-    telegramMTProto.initialize().then(() => {
-      // Check if already logged in
-      telegramMTProto.isLoggedIn().then((loggedIn) => {
-        if (loggedIn) {
+    // Check if already logged in
+    const checkAuth = async () => {
+      try {
+        await mtprotoService.initialize();
+        if (mtprotoService.isLoggedIn()) {
           onLoginSuccess();
         }
-      });
-    });
+      } catch (err) {
+        console.error('Auth check failed:', err);
+      }
+    };
+    checkAuth();
   }, [onLoginSuccess]);
-
-  const handleQRLogin = async () => {
-    if (!qrCodeRef.current) return;
-    
-    setIsLoading(true);
-    setError('');
-    
-    try {
-      await telegramMTProto.connect();
-      await telegramMTProto.startQRCodeLogin(qrCodeRef.current);
-      
-      // Wait for login to complete (polling happens in the service)
-      // The promise will resolve when login is successful
-      setTimeout(async () => {
-        const loggedIn = await telegramMTProto.isLoggedIn();
-        if (loggedIn) {
-          onLoginSuccess();
-        }
-      }, 30000); // Check after 30 seconds
-    } catch (err: any) {
-      setError(err.message || 'QR code login failed');
-      setIsLoading(false);
-    }
-  };
 
   const handlePhoneLogin = async () => {
     if (!phoneNumber.trim()) {
@@ -57,45 +39,59 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       return;
     }
 
-    setIsLoading(true);
+    setLoading(true);
     setError('');
-    
+
     try {
-      await telegramMTProto.connect();
-      const result = await telegramMTProto.startPhoneLogin(phoneNumber);
+      const result = await mtprotoService.loginWithPhone(phoneNumber);
       setPhoneCodeHash(result.phoneCodeHash);
-      setLoginMethod('phone-code');
+      setStep('code');
     } catch (err: any) {
-      setError(err.message || 'Failed to send verification code');
+      setError(err.message || 'Failed to send code');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleVerifyCode = async () => {
-    if (!phoneCode.trim()) {
+  const handleCodeVerification = async () => {
+    if (!code.trim()) {
       setError('Please enter the verification code');
       return;
     }
 
-    setIsLoading(true);
+    setLoading(true);
     setError('');
-    
+
     try {
-      await telegramMTProto.verifyPhoneCode(phoneNumber, phoneCode, phoneCodeHash);
+      await mtprotoService.verifyPhoneCode(phoneNumber, code, phoneCodeHash);
       onLoginSuccess();
     } catch (err: any) {
-      setError(err.message || 'Invalid verification code');
+      setError(err.message || 'Invalid code');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleBack = () => {
-    setLoginMethod(null);
+  const handleQRLogin = async () => {
+    setLoading(true);
     setError('');
-    setPhoneCode('');
-    setPhoneCodeHash('');
+    setStep('qr');
+
+    try {
+      await mtprotoService.loginWithQR(async (url, expires) => {
+        setQrCodeUrl(url);
+        // Generate QR code image
+        const qrImage = await QRCode.toDataURL(url);
+        setQrCodeImage(qrImage);
+      });
+      
+      onLoginSuccess();
+    } catch (err: any) {
+      setError(err.message || 'QR login failed');
+      setStep('method');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -112,82 +108,38 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
             <p className="text-gray-400">Login with your Telegram account</p>
           </div>
 
-          {!loginMethod && (
+          {step === 'method' && (
             <div className="space-y-4">
               <button
-                onClick={() => setLoginMethod('qr')}
+                onClick={() => setStep('phone')}
                 className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-4 rounded-xl font-semibold hover:shadow-lg hover:shadow-blue-500/50 transition-all flex items-center justify-center gap-3"
-              >
-                <QrCode className="w-5 h-5" />
-                Login with QR Code
-              </button>
-              
-              <button
-                onClick={() => setLoginMethod('phone')}
-                className="w-full bg-white/5 border border-white/10 text-white py-4 rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center justify-center gap-3"
               >
                 <Phone className="w-5 h-5" />
                 Login with Phone Number
+              </button>
+              
+              <button
+                onClick={handleQRLogin}
+                disabled={loading}
+                className="w-full bg-white/5 border border-white/10 text-white py-4 rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+              >
+                <QrCode className="w-5 h-5" />
+                {loading ? 'Generating QR...' : 'Login with QR Code'}
               </button>
 
               <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
                 <p className="text-blue-300 text-sm">
                   <strong>Why login with Telegram?</strong><br />
-                  This gives us full access to read your chat history, so your files and folders will persist across all devices without needing local storage.
+                  This gives us full access to read your chat history, so your files and folders will persist across all devices automatically.
                 </p>
               </div>
             </div>
           )}
 
-          {loginMethod === 'qr' && (
+          {step === 'phone' && (
             <div className="space-y-4">
               <button
-                onClick={handleBack}
-                className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </button>
-
-              <div className="text-center">
-                <p className="text-white mb-4">Scan this QR code with your Telegram app</p>
-                
-                <div 
-                  ref={qrCodeRef}
-                  className="bg-white rounded-xl p-4 inline-block mb-4"
-                />
-                
-                {isLoading && (
-                  <div className="flex items-center justify-center gap-2 text-blue-400">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Waiting for scan...</span>
-                  </div>
-                )}
-
-                <button
-                  onClick={handleQRLogin}
-                  disabled={isLoading}
-                  className="mt-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-2 rounded-lg font-semibold hover:shadow-lg hover:shadow-blue-500/50 transition-all disabled:opacity-50"
-                >
-                  Generate QR Code
-                </button>
-              </div>
-
-              <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                <p className="text-yellow-300 text-xs">
-                  <strong>How to scan:</strong><br />
-                  1. Open Telegram on your phone<br />
-                  2. Go to Settings → Devices → Scan QR<br />
-                  3. Point your camera at the QR code above
-                </p>
-              </div>
-            </div>
-          )}
-
-          {loginMethod === 'phone' && (
-            <div className="space-y-4">
-              <button
-                onClick={handleBack}
+                onClick={() => setStep('method')}
                 className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -210,35 +162,27 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
               <button
                 onClick={handlePhoneLogin}
-                disabled={isLoading}
-                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg hover:shadow-blue-500/50 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg hover:shadow-blue-500/50 transition-all disabled:opacity-50"
               >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Sending code...
-                  </>
-                ) : (
-                  'Send Verification Code'
-                )}
+                {loading ? 'Sending code...' : 'Send Verification Code'}
               </button>
             </div>
           )}
 
-          {loginMethod === 'phone-code' && (
+          {step === 'code' && (
             <div className="space-y-4">
               <button
-                onClick={handleBack}
+                onClick={() => setStep('phone')}
                 className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back
               </button>
 
-              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex items-start gap-2">
-                <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
                 <p className="text-green-300 text-sm">
-                  Verification code sent to <strong>{phoneNumber}</strong>
+                  Code sent to <strong>{phoneNumber}</strong>
                 </p>
               </div>
 
@@ -246,31 +190,59 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 <label className="text-white text-sm mb-2 block">Verification Code</label>
                 <input
                   type="text"
-                  value={phoneCode}
-                  onChange={(e) => setPhoneCode(e.target.value)}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
                   placeholder="12345"
                   maxLength={5}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors text-center text-2xl tracking-widest"
                 />
-                <p className="text-gray-400 text-xs mt-2">
-                  Enter the 5-digit code from Telegram
-                </p>
               </div>
 
               <button
-                onClick={handleVerifyCode}
-                disabled={isLoading}
-                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg hover:shadow-blue-500/50 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                onClick={handleCodeVerification}
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg hover:shadow-blue-500/50 transition-all disabled:opacity-50"
               >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Verifying...
-                  </>
-                ) : (
-                  'Verify & Login'
-                )}
+                {loading ? 'Verifying...' : 'Verify & Login'}
               </button>
+            </div>
+          )}
+
+          {step === 'qr' && (
+            <div className="space-y-4">
+              <button
+                onClick={() => setStep('method')}
+                className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </button>
+
+              <div className="text-center">
+                <p className="text-white mb-4">Scan this QR code with your Telegram app</p>
+                
+                {qrCodeImage && (
+                  <div className="bg-white rounded-xl p-4 inline-block mb-4">
+                    <img src={qrCodeImage} alt="QR Code" className="w-64 h-64" />
+                  </div>
+                )}
+
+                {loading && (
+                  <div className="flex items-center justify-center gap-2 text-blue-400">
+                    <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                    <span>Waiting for scan...</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                <p className="text-yellow-300 text-xs">
+                  <strong>How to scan:</strong><br />
+                  1. Open Telegram on your phone<br />
+                  2. Go to Settings → Devices → Scan QR<br />
+                  3. Point your camera at the QR code above
+                </p>
+              </div>
             </div>
           )}
 
