@@ -12,6 +12,13 @@ export interface TelegramChat {
   username?: string;
 }
 
+export interface TelegramChannel {
+  id: number;
+  title: string;
+  username?: string;
+  type: 'channel' | 'supergroup';
+}
+
 export interface FileItem {
   id: string;
   name: string;
@@ -31,15 +38,34 @@ export interface TransferItem {
   fileName: string;
   type: 'upload' | 'download';
   progress: number;
-  status: 'pending' | 'active' | 'completed' | 'error';
+  status: 'pending' | 'active' | 'completed' | 'error' | 'paused';
   speed?: number;
   size: number;
   transferred: number;
   error?: string;
+  path: string;
 }
 
 export interface AppSettings {
   speedBoost: boolean;
   parallelDownloads: number;
+  chunkSize: number;
   theme: 'dark' | 'light' | 'system';
+  autoRefresh: boolean;
+}
+
+export interface AppState {
+  user: TelegramUser | null;
+  botToken: string;
+  selectedChannel: TelegramChannel | null;
+  channels: TelegramChannel[];
+  currentPath: string;
+  files: FileItem[];
+  transfers: TransferItem[];
+  settings: AppSettings;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  viewMode: 'grid' | 'list';
+  selectedFiles: string[];
+  activeTab: string;
 }

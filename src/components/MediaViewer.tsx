@@ -4,7 +4,7 @@ import { X, Download, ZoomIn, ZoomOut, RotateCw, ChevronLeft, ChevronRight, Volu
 import { FileItem } from '../types';
 import { isImageFile, isVideoFile, isAudioFile, formatFileSize } from '../utils/fileUtils';
 import { useAppStore } from '../store';
-import telegramService from '../services/telegram';
+import { telegramService } from '../services/telegram';
 
 interface MediaViewerProps {
   file: FileItem | null;

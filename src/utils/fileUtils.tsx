@@ -8,6 +8,22 @@ export function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
+export function formatSpeed(bytesPerSecond: number): string {
+  return formatFileSize(bytesPerSecond) + '/s';
+}
+
+export function isImageFile(extension: string): boolean {
+  return ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff'].includes(extension.toLowerCase());
+}
+
+export function isVideoFile(extension: string): boolean {
+  return ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', 'm4v', '3gp'].includes(extension.toLowerCase());
+}
+
+export function isAudioFile(extension: string): boolean {
+  return ['mp3', 'wav', 'ogg', 'flac', 'aac', 'wma', 'm4a', 'opus'].includes(extension.toLowerCase());
+}
+
 export function getFileIcon(extension: string): string {
   const iconMap: Record<string, string> = {
     // Images

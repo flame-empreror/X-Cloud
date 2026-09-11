@@ -37,6 +37,7 @@ export default function FileManager({ chatId, files, setFiles, onLogout }: FileM
         status: 'active',
         size: file.size,
         transferred: 0,
+        path: currentPath,
       };
 
       setTransfers(prev => [...prev, transfer]);
@@ -108,6 +109,7 @@ export default function FileManager({ chatId, files, setFiles, onLogout }: FileM
       status: 'active',
       size: file.size,
       transferred: 0,
+      path: file.path,
     };
 
     setTransfers(prev => [...prev, transfer]);

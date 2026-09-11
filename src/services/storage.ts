@@ -63,6 +63,19 @@ class IndexedDBStorage extends MemoryStorage {
       request.onsuccess = () => resolve();
     });
   }
+
+  async saveFiles(files: any[]): Promise<void> {
+    await this.set('files', files);
+  }
+
+  async loadFiles(): Promise<any[]> {
+    const files = await this.get('files');
+    return files || [];
+  }
+
+  async clearFiles(): Promise<void> {
+    await this.delete('files');
+  }
 }
 
 export const StorageService = new IndexedDBStorage();
