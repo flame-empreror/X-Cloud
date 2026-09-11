@@ -179,10 +179,14 @@ class MTProtoService {
     if (!this.client) throw new Error('Client not initialized');
 
     console.log('[MTProto] getMessages called for chatId:', chatId, 'limit:', limit);
-    const messages = await this.client.getMessages(chatId, limit);
-    console.log('[MTProto] getMessages returned', messages.length, 'messages');
+    const rawMessages = await this.client.getMessages(chatId, limit);
+    
+    // Filter out null/undefined messages - convert to array first
+    const messages = Array.from(rawMessages || []).filter(msg => msg !== null && msg !== undefined);
+    
+    console.log('[MTProto] getMessages returned', messages.length, 'valid messages (filtered from', rawMessages?.length || 0, ')');
     if (messages.length > 0) {
-      console.log('[MTProto] First message:', messages[0]);
+      console.log('[MTProto] First message keys:', Object.keys(messages[0]));
     }
     return messages;
   }

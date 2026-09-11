@@ -30,14 +30,27 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
       const messages = await mtprotoService.getMessages(chat.id, 100);
       
       console.log('[FileManager] Retrieved', messages.length, 'messages');
-      if (messages.length > 0) {
-        console.log('[FileManager] First message sample:', messages[0]);
-        console.log('[FileManager] First message keys:', Object.keys(messages[0]));
+      
+      // Ensure we have a proper array
+      const messagesArray = Array.isArray(messages) ? messages : Array.from(messages || []);
+      console.log('[FileManager] Messages array length:', messagesArray.length);
+      
+      if (messagesArray.length > 0) {
+        console.log('[FileManager] First message sample:', messagesArray[0]);
+        if (messagesArray[0]) {
+          console.log('[FileManager] First message keys:', Object.keys(messagesArray[0]));
+        }
       }
       
       const loadedFiles: FileItem[] = [];
       
-      for (const msg of messages) {
+      for (const msg of messagesArray) {
+        // Skip null/undefined messages
+        if (!msg) {
+          console.log('[FileManager] Skipping null message');
+          continue;
+        }
+        
         console.log('[FileManager] Processing message ID:', msg.id);
         console.log('[FileManager] Message object:', msg);
         
