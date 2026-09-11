@@ -195,12 +195,17 @@ class MTProtoService {
       
       console.log('[MTProto] Using accessHash:', accessHash.toString());
       
+      // Use the channelId from inputPeer if available, otherwise use Math.abs(chatId)
+      const channelId = inputPeer?.channelId || Math.abs(chatId);
+      
+      console.log('[MTProto] Using channelId:', channelId);
+      
       // Use raw API call to fetch messages with limit
       const result = await this.client.call({
         _: 'messages.getHistory',
         peer: {
           _: 'inputPeerChannel',
-          channelId: Math.abs(chatId),
+          channelId: channelId,
           accessHash: accessHash
         },
         offsetId: 0,
