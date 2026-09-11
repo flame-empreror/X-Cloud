@@ -183,21 +183,39 @@ class MTProtoService {
     
     try {
       // Use the high-level getMessages method which handles BigInt/Long conversions internally
-      // This avoids the "can't convert BigInt to number" error
       const peer = inputPeer || chatId;
       
       console.log('[MTProto] Using peer:', peer);
+      console.log('[MTProto] Peer type:', typeof peer);
+      console.log('[MTProto] Peer structure:', JSON.stringify(peer, (key, value) => 
+        typeof value === 'bigint' ? value.toString() : value
+      , 2));
       
       // Get messages using the high-level API
-      const messages = await this.client.getMessages(peer, limit);
+      // Returns (Message | null)[] - array that can contain null values
+      const messagesArray = await this.client.getMessages(peer, limit);
       
-      console.log('[MTProto] Retrieved', messages.length, 'messages');
+      console.log('[MTProto] Raw response type:', typeof messagesArray);
+      console.log('[MTProto] Raw response is array:', Array.isArray(messagesArray));
+      console.log('[MTProto] Retrieved', messagesArray.length, 'messages (including nulls)');
       
-      // Convert MessageCollection to array if needed
-      const messagesArray = Array.isArray(messages) ? messages : Array.from(messages || []);
+      // Log the raw response for debugging
+      console.log('[MTProto] Raw messages array:', messagesArray);
       
-      // Filter out null/undefined and log first few messages
-      const validMessages = messagesArray.filter(msg => msg !== null && msg !== undefined);
+      // Filter out null/undefined values and log what we're filtering
+      const validMessages = messagesArray.filter((msg, idx) => {
+        const isValid = msg !== null && msg !== undefined && msg.id !== undefined;
+        if (!isValid) {
+          console.log(`[MTProto] Filtering out null/invalid message at index ${idx}:`, msg);
+        } else {
+          console.log(`[MTProto] Keeping valid message at index ${idx}:`, {
+            id: msg.id,
+            hasText: !!msg.text,
+            hasMedia: !!msg.media
+          });
+        }
+        return isValid;
+      });
       
       console.log('[MTProto] Valid messages count:', validMessages.length);
       
