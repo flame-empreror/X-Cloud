@@ -19,8 +19,14 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Check if already logged in
+    // Check if credentials exist and if already logged in
     const checkAuth = async () => {
+      // First check if credentials are configured
+      if (!mtprotoService.hasCredentials()) {
+        setError('Telegram API credentials not configured. Please set VITE_TELEGRAM_API_ID and VITE_TELEGRAM_API_HASH environment variables.');
+        return;
+      }
+
       try {
         await mtprotoService.initialize();
         if (mtprotoService.isLoggedIn()) {

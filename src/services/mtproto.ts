@@ -19,8 +19,12 @@ class MTProtoService {
   private client: TelegramClient | null = null;
   private isAuthenticated: boolean = false;
 
+  hasCredentials(): boolean {
+    return !!API_ID && !!API_HASH;
+  }
+
   async initialize(): Promise<void> {
-    if (!API_ID || !API_HASH) {
+    if (!this.hasCredentials()) {
       throw new Error('Telegram API credentials not configured. Please set VITE_TELEGRAM_API_ID and VITE_TELEGRAM_API_HASH in your .env file');
     }
 

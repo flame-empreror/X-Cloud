@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Menu } from 'lucide-react';
 import { useAppStore } from './store';
 import { mtprotoService } from './services/mtproto';
+import SetupScreen from './components/SetupScreen';
 import LoginScreenMTProto from './components/LoginScreenMTProto';
 import ChannelSelect from './components/ChannelSelect';
 import Sidebar from './components/Sidebar';
@@ -22,6 +23,13 @@ function App() {
   useEffect(() => {
     const init = async () => {
       try {
+        // Check if credentials are configured first
+        if (!mtprotoService.hasCredentials()) {
+          console.error('API credentials not configured');
+          setIsLoading(false);
+          return;
+        }
+
         await mtprotoService.initialize();
         if (mtprotoService.isLoggedIn()) {
           setAuthenticated(true);
@@ -129,6 +137,11 @@ function App() {
         </div>
       </div>
     );
+  }
+
+  // Check if credentials are configured
+  if (!mtprotoService.hasCredentials()) {
+    return <SetupScreen />;
   }
 
   if (!isAuthenticated) {
