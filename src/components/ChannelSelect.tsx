@@ -36,6 +36,7 @@ export default function ChannelSelect({ onChatSelect }: ChannelSelectProps) {
           id: d.id,
           title: d.title || 'Unknown',
           type: d.type as 'channel' | 'group',
+          inputPeer: d.peer, // Save the peer info for raw API calls
         }));
 
       console.log('[ChannelSelect] Filtered groups:', groups);

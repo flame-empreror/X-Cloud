@@ -10,6 +10,7 @@ export interface TelegramChat {
   title: string;
   type: 'group' | 'supergroup' | 'channel';
   username?: string;
+  inputPeer?: any; // Store the input peer for raw API calls
 }
 
 export interface TelegramChannel {

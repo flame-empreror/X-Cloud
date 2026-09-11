@@ -27,45 +27,28 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
     setIsLoadingHistory(true);
     try {
       console.log('[FileManager] Loading chat history for chat:', chat.id, chat.title);
-      const messages = await mtprotoService.getMessages(chat.id, 100);
+      console.log('[FileManager] Chat inputPeer:', chat.inputPeer);
+      
+      // Pass the inputPeer to getMessages for raw API call
+      const messages = await mtprotoService.getMessages(chat.id, 100, chat.inputPeer);
       
       console.log('[FileManager] Retrieved', messages.length, 'messages');
       
-      // Ensure we have a proper array
-      const messagesArray = Array.isArray(messages) ? messages : Array.from(messages || []);
-      console.log('[FileManager] Messages array length:', messagesArray.length);
-      
-      if (messagesArray.length > 0) {
-        console.log('[FileManager] First message sample:', messagesArray[0]);
-        if (messagesArray[0]) {
-          console.log('[FileManager] First message keys:', Object.keys(messagesArray[0]));
-        }
-      }
-      
       const loadedFiles: FileItem[] = [];
       
-      for (const msg of messagesArray) {
+      for (const msg of messages) {
         // Skip null/undefined messages
         if (!msg) {
           console.log('[FileManager] Skipping null message');
           continue;
         }
         
-        console.log('[FileManager] Processing message ID:', msg.id);
-        console.log('[FileManager] Message object:', msg);
+        console.log('[FileManager] Processing message ID:', msg.id, 'type:', msg._);
         
-        // Try different possible property names for the text/caption
-        const possibleTexts = [
-          msg.text,
-          msg.message,
-          msg.caption,
-          msg.content,
-          msg.body
-        ];
+        // Raw API returns messages with 'message' property (not 'text')
+        const caption = msg.message || msg.text || '';
         
-        const caption = possibleTexts.find(t => t && typeof t === 'string') || '';
-        
-        console.log('[FileManager] Caption found:', caption.substring(0, 100));
+        console.log('[FileManager] Caption:', caption.substring(0, 100));
         
         // Check if message has our metadata prefix
         if (caption.startsWith('__TCLOUD_V1__')) {
@@ -75,12 +58,11 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
             const metadata = JSON.parse(jsonStr);
             console.log('[FileManager] Parsed metadata:', metadata);
             
-            // Try to get file ID from different possible locations
+            // Extract file ID from media
             let fileId: string | undefined;
-            if (msg.media) {
-              fileId = (msg.media as any).document?.id?.toString() || 
-                       (msg.media as any).id?.toString() ||
-                       (msg.media as any).fileId;
+            if (msg.media && msg.media._ === 'messageMediaDocument') {
+              fileId = msg.media.document?.id?.toString();
+              console.log('[FileManager] File ID:', fileId);
             }
             
             const fileItem: FileItem = {
@@ -93,8 +75,8 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
               extension: metadata.extension || '',
               telegramMessageId: msg.id,
               telegramFileId: fileId,
-              createdAt: metadata.createdAt || (msg.date ? new Date(msg.date).getTime() : Date.now()),
-              modifiedAt: msg.date ? new Date(msg.date).getTime() : Date.now(),
+              createdAt: metadata.createdAt || (msg.date ? msg.date * 1000 : Date.now()),
+              modifiedAt: msg.date ? msg.date * 1000 : Date.now(),
             };
             
             console.log('[FileManager] Created file item:', fileItem);
@@ -213,7 +195,7 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
 
     try {
       // Get the message to access its media
-      const messages = await mtprotoService.getMessages(chat.id, 100);
+      const messages = await mtprotoService.getMessages(chat.id, 100, chat.inputPeer);
       const message = messages.find((m: any) => m.id === file.telegramMessageId);
       
       if (!message || !message.media) {

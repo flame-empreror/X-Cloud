@@ -1,4 +1,5 @@
 import { TelegramClient, InputMedia } from '@mtcute/web';
+import { Long } from '@mtcute/core';
 
 // Type declaration for Vite env
 declare global {
@@ -175,54 +176,62 @@ class MTProtoService {
     return messages;
   }
 
-  async getMessages(chatId: number, limit: number = 100): Promise<any[]> {
+  async getMessages(chatId: number, limit: number = 100, inputPeer?: any): Promise<any[]> {
     if (!this.client) throw new Error('Client not initialized');
 
     console.log('[MTProto] getMessages called for chatId:', chatId, 'limit:', limit);
     
     try {
-      // Use the client's getMessages method with correct signature
-      const result = await this.client.getMessages(chatId, limit);
+      // Use raw messages.getHistory API call for reliable message retrieval
+      const peer = inputPeer || {
+        _: 'inputPeerChannel',
+        channelId: Math.abs(chatId),
+        accessHash: BigInt(0) // Will be resolved by the library
+      };
       
-      console.log('[MTProto] getMessages result:', result);
-      console.log('[MTProto] Result type:', typeof result);
-      console.log('[MTProto] Is array:', Array.isArray(result));
+      console.log('[MTProto] Using peer:', peer);
       
-      // Handle different possible return types
+      const result = await this.client.call({
+        _: 'messages.getHistory',
+        peer: peer,
+        offsetId: 0,
+        offsetDate: 0,
+        addOffset: 0,
+        limit: limit,
+        maxId: 0,
+        minId: 0,
+        hash: Long.fromNumber(0)
+      });
+      
+      console.log('[MTProto] getHistory result type:', result._);
+      
+      // Extract messages from the result
+      // Result can be: messages.messages, messages.messagesSlice, or messages.channelMessages
       let messages: any[] = [];
       
-      if (Array.isArray(result)) {
-        messages = result;
-      } else if (result && typeof result === 'object') {
-        // If it's an object, try to extract messages
-        const resultObj = result as any;
-        if ('messages' in resultObj) {
-          messages = resultObj.messages || [];
-        } else if ('toArray' in resultObj && typeof resultObj.toArray === 'function') {
-          messages = resultObj.toArray();
-        } else {
-          // Try to convert to array
-          messages = Object.values(resultObj);
-        }
+      if (result._ === 'messages.messages' || result._ === 'messages.messagesSlice' || result._ === 'messages.channelMessages') {
+        messages = result.messages || [];
       }
       
-      // Filter out null/undefined values
-      messages = messages.filter(msg => msg !== null && msg !== undefined);
+      console.log('[MTProto] Extracted', messages.length, 'messages');
       
-      console.log('[MTProto] Filtered messages count:', messages.length);
+      // Filter out null/undefined and log first few messages
+      const validMessages = messages.filter(msg => msg !== null && msg !== undefined);
+      
+      console.log('[MTProto] Valid messages count:', validMessages.length);
       
       // Log first few messages for debugging
-      messages.slice(0, 3).forEach((msg: any, idx: number) => {
+      validMessages.slice(0, 3).forEach((msg: any, idx: number) => {
         console.log(`[MTProto] Message ${idx + 1}:`, {
           id: msg.id,
-          text: msg.text?.substring(0, 100),
+          _: msg._,
           message: msg.message?.substring(0, 100),
           hasMedia: !!msg.media,
-          keys: Object.keys(msg)
+          mediaType: msg.media?._
         });
       });
       
-      return messages;
+      return validMessages;
     } catch (error) {
       console.error('[MTProto] Error in getMessages:', error);
       throw error;
