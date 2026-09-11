@@ -180,16 +180,28 @@ class MTProtoService {
     if (!this.client) throw new Error('Client not initialized');
 
     console.log('[MTProto] getMessages called for chatId:', chatId, 'limit:', limit);
+    console.log('[MTProto] inputPeer:', inputPeer);
     
     try {
+      // Convert accessHash from string to Long if needed
+      let accessHash = Long.fromNumber(0);
+      if (inputPeer?.accessHash) {
+        if (typeof inputPeer.accessHash === 'string') {
+          accessHash = Long.fromString(inputPeer.accessHash);
+        } else if (inputPeer.accessHash instanceof Long) {
+          accessHash = inputPeer.accessHash;
+        }
+      }
+      
+      console.log('[MTProto] Using accessHash:', accessHash.toString());
+      
       // Use raw API call to fetch messages with limit
-      // This is the most reliable way to get messages from a channel
       const result = await this.client.call({
         _: 'messages.getHistory',
         peer: {
           _: 'inputPeerChannel',
           channelId: Math.abs(chatId),
-          accessHash: inputPeer?.accessHash || 0
+          accessHash: accessHash
         },
         offsetId: 0,
         offsetDate: 0,

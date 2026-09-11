@@ -28,8 +28,8 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
     try {
       console.log('[FileManager] Loading chat history for chat:', chat.id, chat.title);
       
-      // Use just the chat ID - the high-level API will resolve the peer automatically
-      const messages = await mtprotoService.getMessages(chat.id, 100);
+      // Pass the inputPeer to getMessages for proper authentication
+      const messages = await mtprotoService.getMessages(chat.id, 100, chat.inputPeer);
       
       console.log('[FileManager] Retrieved', messages.length, 'messages');
       
@@ -214,7 +214,7 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
       } else {
         // Fallback: fetch the message again
         console.log('[FileManager] Message not stored, fetching message');
-        const messages = await mtprotoService.getMessages(chat.id, 100);
+        const messages = await mtprotoService.getMessages(chat.id, 100, chat.inputPeer);
         const message = messages.find((m: any) => m.id === file.telegramMessageId);
         
         if (!message || !message.media) {

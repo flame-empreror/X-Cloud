@@ -8,12 +8,13 @@ import { mtprotoService } from '../services/mtproto';
 interface MediaViewerProps {
   file: FileItem | null;
   chatId: number;
+  inputPeer?: any;
   onClose: () => void;
   files: FileItem[];
   onNavigate: (file: FileItem) => void;
 }
 
-export default function MediaViewer({ file, chatId, onClose, files, onNavigate }: MediaViewerProps) {
+export default function MediaViewer({ file, chatId, inputPeer, onClose, files, onNavigate }: MediaViewerProps) {
   const [loading, setLoading] = useState(false);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -36,7 +37,7 @@ export default function MediaViewer({ file, chatId, onClose, files, onNavigate }
     
     try {
       // Get the message to access its media
-      const messages = await mtprotoService.getMessages(chatId, 100);
+      const messages = await mtprotoService.getMessages(chatId, 100, inputPeer);
       const message = messages.find((m: any) => m.id === fileItem.telegramMessageId);
       
       if (!message || !message.media) {
@@ -57,7 +58,7 @@ export default function MediaViewer({ file, chatId, onClose, files, onNavigate }
     if (!file || !file.telegramMessageId) return;
 
     try {
-      const messages = await mtprotoService.getMessages(chatId, 100);
+      const messages = await mtprotoService.getMessages(chatId, 100, inputPeer);
       const message = messages.find((m: any) => m.id === file.telegramMessageId);
       
       if (!message || !message.media) {
