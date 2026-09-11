@@ -25,18 +25,35 @@ function App() {
       try {
         // Check if credentials are configured first
         if (!mtprotoService.hasCredentials()) {
-          console.error('API credentials not configured');
+          console.error('[App] API credentials not configured');
           setIsLoading(false);
           return;
         }
 
-        await mtprotoService.initialize();
+        console.log('[App] Initializing MTProto...');
+        
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Initialization timeout')), 10000)
+        );
+        
+        await Promise.race([
+          mtprotoService.initialize(),
+          timeoutPromise
+        ]);
+        
+        console.log('[App] MTProto initialized successfully');
+        
         if (mtprotoService.isLoggedIn()) {
+          console.log('[App] User is already logged in');
           setAuthenticated(true);
+        } else {
+          console.log('[App] User is not logged in');
         }
-      } catch (error) {
-        console.error('Failed to initialize MTProto:', error);
+      } catch (error: any) {
+        console.error('[App] Failed to initialize MTProto:', error.message);
       } finally {
+        console.log('[App] Setting isLoading to false');
         setIsLoading(false);
       }
     };
