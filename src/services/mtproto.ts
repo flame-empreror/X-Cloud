@@ -123,65 +123,31 @@ class MTProtoService {
     if (!this.client) throw new Error('Client not initialized');
 
     try {
-      // Use raw API call for getDialogs
-      const result = await this.client.call({
-        _: 'messages.getDialogs',
+      console.log('[MTProto] Fetching dialogs...');
+      
+      // Use iterDialogs to get all dialogs
+      const dialogs: any[] = [];
+      
+      for await (const dialog of this.client.iterDialogs({
         limit: 100,
-        offsetDate: 0,
-        offsetId: 0,
-        offsetPeer: { _: 'inputPeerEmpty' as const },
-        hash: { _: 'long', value: BigInt(0) } as any,
-      }) as any;
-
-      console.log('[MTProto] Raw getDialogs result:', result);
-
-      // Handle the response structure
-      if (result._ === 'messages.dialogs' || result._ === 'messages.dialogsSlice') {
-        // Create a map of all chats and channels by ID
-        const entityMap = new Map<number, any>();
+      })) {
+        console.log('[MTProto] Got dialog:', dialog);
+        console.log('[MTProto] Dialog keys:', Object.keys(dialog));
+        console.log('[MTProto] Full dialog object:', JSON.stringify(dialog, null, 2));
         
-        // Add chats to map
-        if (result.chats) {
-          result.chats.forEach((chat: any) => {
-            entityMap.set(chat.id, {
-              id: chat.id,
-              title: chat.title || 'Unknown',
-              type: chat.megagroup || chat.gigagroup ? 'group' : 'chat',
-            });
-          });
-        }
+        // Access properties dynamically
+        const d = dialog as any;
         
-        // Add channels to map
-        if (result.channels) {
-          result.channels.forEach((channel: any) => {
-            entityMap.set(channel.id, {
-              id: channel.id,
-              title: channel.title || 'Unknown',
-              type: 'channel',
-            });
-          });
-        }
-
-        console.log('[MTProto] Entity map:', Array.from(entityMap.values()));
-
-        // Map dialogs to our format using the entity map
-        const dialogs = (result.dialogs || []).map((d: any) => {
-          const peerId = d.peer.channel_id || d.peer.chat_id || d.peer.user_id;
-          const entity = entityMap.get(peerId);
-          
-          return {
-            id: peerId,
-            title: entity?.title || 'Unknown',
-            type: entity?.type || 'chat',
-            peer: d.peer,
-          };
+        dialogs.push({
+          id: d.id || d.entity?.id || d.peer?.id,
+          title: d.title || d.entity?.title || 'Unknown',
+          type: d.isChannel ? 'channel' : d.isGroup ? 'group' : d.entity?.className === 'Channel' ? 'channel' : d.entity?.className === 'Chat' ? 'group' : 'chat',
+          peer: d.inputPeer || d.peer,
         });
-
-        console.log('[MTProto] Mapped dialogs:', dialogs);
-        return dialogs;
       }
 
-      return [];
+      console.log('[MTProto] All dialogs:', dialogs);
+      return dialogs;
     } catch (error) {
       console.error('[MTProto] getDialogs error:', error);
       throw error;
