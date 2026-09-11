@@ -182,18 +182,13 @@ class MTProtoService {
     console.log('[MTProto] getMessages called for chatId:', chatId, 'limit:', limit);
     
     try {
-      // Use the high-level getMessages method which handles BigInt/Long conversions internally
-      const peer = inputPeer || chatId;
+      // Always use just the chat ID - the high-level API will resolve the peer automatically
+      // This avoids issues with malformed inputPeer objects
+      console.log('[MTProto] Using chatId:', chatId);
       
-      console.log('[MTProto] Using peer:', peer);
-      console.log('[MTProto] Peer type:', typeof peer);
-      console.log('[MTProto] Peer structure:', JSON.stringify(peer, (key, value) => 
-        typeof value === 'bigint' ? value.toString() : value
-      , 2));
-      
-      // Get messages using the high-level API
+      // Get messages using the high-level API with just the chat ID
       // Returns (Message | null)[] - array that can contain null values
-      const messagesArray = await this.client.getMessages(peer, limit);
+      const messagesArray = await this.client.getMessages(chatId, limit);
       
       console.log('[MTProto] Raw response type:', typeof messagesArray);
       console.log('[MTProto] Raw response is array:', Array.isArray(messagesArray));
