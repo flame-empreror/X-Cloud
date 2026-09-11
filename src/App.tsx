@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu } from 'lucide-react';
 import { useAppStore } from './store';
-import telegramService from './services/telegram';
-import { fileSystemService } from './services/filesystem';
-import LoginScreen from './components/LoginScreen';
+import { telegramMTProto } from './services/telegram-mtproto';
+import LoginScreenMTProto from './components/LoginScreenMTProto';
+import ChannelSelect from './components/ChannelSelect';
 import Sidebar from './components/Sidebar';
 import FileManager from './components/FileManager';
 import TransfersPanel from './components/TransfersPanel';
@@ -13,55 +13,41 @@ import MediaViewer from './components/MediaViewer';
 import { FileItem } from './types';
 
 function App() {
-  const { isAuthenticated, selectedChannel, files, botToken, activeTab, setActiveTab, setFiles } = useAppStore();
+  const { isAuthenticated, selectedChannel, files, activeTab, setActiveTab, setFiles, setAuthenticated } = useAppStore();
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // CRITICAL: Initialize telegram service with bot token on app load
+  // Initialize MTProto client on app load
   useEffect(() => {
-    if (botToken && isAuthenticated) {
-      telegramService.setBotToken(botToken);
-    }
-  }, [botToken, isAuthenticated]);
-
-  // Scan group messages on startup to reconstruct file structure
-  useEffect(() => {
-    const scanGroup = async () => {
-      if (!isAuthenticated || !selectedChannel || files.length > 0) return;
-      
-      console.log('[App] Scanning group messages to reconstruct file structure...');
-      
+    const init = async () => {
       try {
-        const messages = await telegramService.scanGroupMessages(selectedChannel.id);
-        const parsedFiles: FileItem[] = [];
-        
-        for (const message of messages) {
-          const fileItem = fileSystemService.parseMessage(message);
-          if (fileItem) {
-            parsedFiles.push(fileItem);
-          }
+        await telegramMTProto.initialize();
+        const loggedIn = await telegramMTProto.isLoggedIn();
+        if (loggedIn) {
+          setAuthenticated(true);
         }
-        
-        // Build complete file tree with virtual folders
-        const fileTree = fileSystemService.buildFileTree(parsedFiles);
-        
-        console.log('[App] Reconstructed', fileTree.length, 'files/folders');
-        setFiles(fileTree);
       } catch (error) {
-        console.error('[App] Failed to scan group:', error);
+        console.error('Failed to initialize MTProto:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
     
-    scanGroup();
-  }, [isAuthenticated, selectedChannel]);
+    init();
+  }, [setAuthenticated]);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     setMobileSidebarOpen(false);
   };
 
-  if (!isAuthenticated || !selectedChannel) {
-    return <LoginScreen />;
+  if (!isAuthenticated) {
+    return <LoginScreenMTProto onLoginSuccess={() => setAuthenticated(true)} />;
+  }
+
+  if (!selectedChannel) {
+    return <ChannelSelect onSelect={() => {}} />;
   }
 
   return (

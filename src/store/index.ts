@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { AppState, FileItem, TransferItem, AppSettings, TelegramChannel, TelegramUser } from '../types';
+import { StorageService } from '../services/storage';
 
 interface AppActions {
   setUser: (user: TelegramUser | null) => void;
@@ -57,9 +58,20 @@ export const useAppStore = create<AppState & AppActions>()(
       setSelectedChannel: (selectedChannel) => set({ selectedChannel }),
       setChannels: (channels) => set({ channels }),
       setCurrentPath: (currentPath) => set({ currentPath }),
-      setFiles: (files) => set({ files }),
-      addFile: (file) => set((state) => ({ files: [...state.files, file] })),
-      removeFile: (id) => set((state) => ({ files: state.files.filter(f => f.id !== id) })),
+      setFiles: (files) => {
+        StorageService.saveFiles(files);
+        set({ files });
+      },
+      addFile: (file) => set((state) => {
+        const newFiles = [...state.files, file];
+        StorageService.saveFiles(newFiles);
+        return { files: newFiles };
+      }),
+      removeFile: (id) => set((state) => {
+        const newFiles = state.files.filter(f => f.id !== id);
+        StorageService.saveFiles(newFiles);
+        return { files: newFiles };
+      }),
       addTransfer: (transfer) => set((state) => ({ transfers: [transfer, ...state.transfers] })),
       updateTransfer: (id, updates) => set((state) => ({
         transfers: state.transfers.map(t => t.id === id ? { ...t, ...updates } : t),
@@ -82,18 +94,21 @@ export const useAppStore = create<AppState & AppActions>()(
       })),
       clearSelection: () => set({ selectedFiles: [] }),
       setActiveTab: (activeTab) => set({ activeTab }),
-      logout: () => set({
-        user: null,
-        botToken: '',
-        selectedChannel: null,
-        channels: [],
-        currentPath: '/',
-        files: [],
-        transfers: [],
-        isAuthenticated: false,
-        selectedFiles: [],
-        activeTab: 'files',
-      }),
+      logout: () => {
+        StorageService.clearFiles();
+        set({
+          user: null,
+          botToken: '',
+          selectedChannel: null,
+          channels: [],
+          currentPath: '/',
+          files: [],
+          transfers: [],
+          isAuthenticated: false,
+          selectedFiles: [],
+          activeTab: 'files',
+        });
+      },
     }),
     {
       name: 'telecloud-storage',
