@@ -30,7 +30,6 @@ export interface FileItem {
   extension?: string;
   telegramMessageId?: number;
   telegramFileId?: string;
-  telegramMessage?: any; // Store the entire message object for downloading
   createdAt: number;
   modifiedAt: number;
 }

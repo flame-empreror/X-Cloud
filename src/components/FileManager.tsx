@@ -74,7 +74,6 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
               extension: metadata.extension || '',
               telegramMessageId: msg.id,
               telegramFileId: fileId,
-              telegramMessage: msg, // Store the entire message object for downloading
               createdAt: metadata.createdAt || (msg.date ? msg.date * 1000 : Date.now()),
               modifiedAt: msg.date ? msg.date * 1000 : Date.now(),
             };
@@ -155,7 +154,6 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
           extension: file.name.split('.').pop() || '',
           telegramMessageId: result.id,
           telegramFileId: result.media?.document?.id?.toString(),
-          telegramMessage: result, // Store the entire message object
           createdAt: Date.now(),
           modifiedAt: Date.now(),
         };
@@ -196,42 +194,30 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
 
     try {
       console.log('[FileManager] Starting download for file:', file.name);
-      console.log('[FileManager] File message:', file.telegramMessage);
+      console.log('[FileManager] Message ID:', file.telegramMessageId);
       
-      // Use the stored message object if available
-      if (file.telegramMessage) {
-        console.log('[FileManager] Using stored message for download');
-        const blob = await mtprotoService.downloadMedia(file.telegramMessage);
-        
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = file.name;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      } else {
-        // Fallback: fetch the message again
-        console.log('[FileManager] Message not stored, fetching message');
-        const messages = await mtprotoService.getMessages(chat.id, 100, chat.inputPeer);
-        const message = messages.find((m: any) => m.id === file.telegramMessageId);
-        
-        if (!message || !message.media) {
-          throw new Error('File not found');
-        }
-
-        const blob = await mtprotoService.downloadMedia(message);
-        
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = file.name;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+      // Always fetch the message fresh from Telegram to get proper Long objects
+      // Stored message objects have serialized Long objects that cause LOCATION_INVALID
+      console.log('[FileManager] Fetching fresh message from Telegram');
+      const messages = await mtprotoService.getMessages(chat.id, 100, chat.inputPeer);
+      const message = messages.find((m: any) => m.id === file.telegramMessageId);
+      
+      if (!message || !message.media) {
+        throw new Error('File not found in chat history');
       }
+
+      console.log('[FileManager] Found message, starting download');
+      const blob = await mtprotoService.downloadMedia(message);
+      
+      console.log('[FileManager] Download complete, creating download link');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
       setTransfers(prev => prev.map(t => 
         t.id === transferId ? { ...t, status: 'completed', progress: 100 } : t

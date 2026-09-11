@@ -44,7 +44,7 @@ export default function MediaViewer({ file, chatId, inputPeer, onClose, files, o
         throw new Error('Media not found');
       }
 
-      const blob = await mtprotoService.downloadMedia(message.media);
+      const blob = await mtprotoService.downloadMedia(message);
       const url = URL.createObjectURL(blob);
       setMediaUrl(url);
     } catch (error) {
@@ -65,7 +65,7 @@ export default function MediaViewer({ file, chatId, inputPeer, onClose, files, o
         throw new Error('File not found');
       }
 
-      const blob = await mtprotoService.downloadMedia(message.media);
+      const blob = await mtprotoService.downloadMedia(message);
       
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
