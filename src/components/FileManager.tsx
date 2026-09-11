@@ -26,22 +26,49 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
   const loadChatHistory = async () => {
     setIsLoadingHistory(true);
     try {
-      console.log('[FileManager] Loading chat history...');
+      console.log('[FileManager] Loading chat history for chat:', chat.id, chat.title);
       const messages = await mtprotoService.getMessages(chat.id, 100);
       
       console.log('[FileManager] Retrieved', messages.length, 'messages');
+      if (messages.length > 0) {
+        console.log('[FileManager] First message sample:', messages[0]);
+        console.log('[FileManager] First message keys:', Object.keys(messages[0]));
+      }
       
       const loadedFiles: FileItem[] = [];
       
       for (const msg of messages) {
-        console.log('[FileManager] Processing message:', msg.id, 'text:', msg.text);
+        console.log('[FileManager] Processing message ID:', msg.id);
+        console.log('[FileManager] Message object:', msg);
         
-        // Check if message has our metadata prefix in the text/caption
-        const caption = msg.text || '';
+        // Try different possible property names for the text/caption
+        const possibleTexts = [
+          msg.text,
+          msg.message,
+          msg.caption,
+          msg.content,
+          msg.body
+        ];
+        
+        const caption = possibleTexts.find(t => t && typeof t === 'string') || '';
+        
+        console.log('[FileManager] Caption found:', caption.substring(0, 100));
+        
+        // Check if message has our metadata prefix
         if (caption.startsWith('__TCLOUD_V1__')) {
           try {
-            const metadata = JSON.parse(caption.substring('__TCLOUD_V1__'.length));
+            const jsonStr = caption.substring('__TCLOUD_V1__'.length);
+            console.log('[FileManager] Parsing JSON:', jsonStr);
+            const metadata = JSON.parse(jsonStr);
             console.log('[FileManager] Parsed metadata:', metadata);
+            
+            // Try to get file ID from different possible locations
+            let fileId: string | undefined;
+            if (msg.media) {
+              fileId = (msg.media as any).document?.id?.toString() || 
+                       (msg.media as any).id?.toString() ||
+                       (msg.media as any).fileId;
+            }
             
             const fileItem: FileItem = {
               id: msg.id.toString(),
@@ -52,22 +79,26 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
               mimeType: metadata.mimeType || '',
               extension: metadata.extension || '',
               telegramMessageId: msg.id,
-              telegramFileId: msg.media ? (msg.media as any).document?.id?.toString() : undefined,
-              createdAt: metadata.createdAt || new Date(msg.date).getTime(),
-              modifiedAt: new Date(msg.date).getTime(),
+              telegramFileId: fileId,
+              createdAt: metadata.createdAt || (msg.date ? new Date(msg.date).getTime() : Date.now()),
+              modifiedAt: msg.date ? new Date(msg.date).getTime() : Date.now(),
             };
             
+            console.log('[FileManager] Created file item:', fileItem);
             loadedFiles.push(fileItem);
           } catch (e) {
-            console.error('[FileManager] Failed to parse file metadata:', e, 'caption:', caption);
+            console.error('[FileManager] Failed to parse file meta:', e);
+            console.error('[FileManager] Caption was:', caption);
           }
         }
       }
       
-      console.log('[FileManager] Loaded', loadedFiles.length, 'files');
+      console.log('[FileManager] Total files loaded:', loadedFiles.length);
+      console.log('[FileManager] Files:', loadedFiles);
       setFiles(loadedFiles);
     } catch (error) {
       console.error('[FileManager] Failed to load chat history:', error);
+      console.error('[FileManager] Error stack:', error instanceof Error ? error.stack : 'No stack');
     } finally {
       setIsLoadingHistory(false);
     }

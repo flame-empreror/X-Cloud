@@ -178,7 +178,12 @@ class MTProtoService {
   async getMessages(chatId: number, limit: number = 100): Promise<any[]> {
     if (!this.client) throw new Error('Client not initialized');
 
+    console.log('[MTProto] getMessages called for chatId:', chatId, 'limit:', limit);
     const messages = await this.client.getMessages(chatId, limit);
+    console.log('[MTProto] getMessages returned', messages.length, 'messages');
+    if (messages.length > 0) {
+      console.log('[MTProto] First message:', messages[0]);
+    }
     return messages;
   }
 
