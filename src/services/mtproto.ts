@@ -119,33 +119,73 @@ class MTProtoService {
     return await this.client.getMe();
   }
 
-  async getDialogs(): Promise<any> {
+  async getDialogs(): Promise<any[]> {
     if (!this.client) throw new Error('Client not initialized');
 
-    // Use raw API call for getDialogs
-    const result = await this.client.call({
-      _: 'messages.getDialogs',
-      limit: 100,
-      offsetDate: 0,
-      offsetId: 0,
-      offsetPeer: { _: 'inputPeerEmpty' as const },
-      hash: { _: 'long', value: BigInt(0) } as any,
-    }) as any;
+    try {
+      // Use raw API call for getDialogs
+      const result = await this.client.call({
+        _: 'messages.getDialogs',
+        limit: 100,
+        offsetDate: 0,
+        offsetId: 0,
+        offsetPeer: { _: 'inputPeerEmpty' as const },
+        hash: { _: 'long', value: BigInt(0) } as any,
+      }) as any;
 
-    // Return the full structure including chats and channels arrays
-    if (result._ === 'messages.dialogs' || result._ === 'messages.dialogsSlice') {
-      return {
-        dialogs: result.dialogs || [],
-        chats: result.chats || [],
-        channels: result.channels || [],
-      };
+      console.log('[MTProto] Raw getDialogs result:', result);
+
+      // Handle the response structure
+      if (result._ === 'messages.dialogs' || result._ === 'messages.dialogsSlice') {
+        // Create a map of all chats and channels by ID
+        const entityMap = new Map<number, any>();
+        
+        // Add chats to map
+        if (result.chats) {
+          result.chats.forEach((chat: any) => {
+            entityMap.set(chat.id, {
+              id: chat.id,
+              title: chat.title || 'Unknown',
+              type: chat.megagroup || chat.gigagroup ? 'group' : 'chat',
+            });
+          });
+        }
+        
+        // Add channels to map
+        if (result.channels) {
+          result.channels.forEach((channel: any) => {
+            entityMap.set(channel.id, {
+              id: channel.id,
+              title: channel.title || 'Unknown',
+              type: 'channel',
+            });
+          });
+        }
+
+        console.log('[MTProto] Entity map:', Array.from(entityMap.values()));
+
+        // Map dialogs to our format using the entity map
+        const dialogs = (result.dialogs || []).map((d: any) => {
+          const peerId = d.peer.channel_id || d.peer.chat_id || d.peer.user_id;
+          const entity = entityMap.get(peerId);
+          
+          return {
+            id: peerId,
+            title: entity?.title || 'Unknown',
+            type: entity?.type || 'chat',
+            peer: d.peer,
+          };
+        });
+
+        console.log('[MTProto] Mapped dialogs:', dialogs);
+        return dialogs;
+      }
+
+      return [];
+    } catch (error) {
+      console.error('[MTProto] getDialogs error:', error);
+      throw error;
     }
-
-    return {
-      dialogs: [],
-      chats: [],
-      channels: [],
-    };
   }
 
   async getChatHistory(peer: any, limit: number = 100): Promise<any[]> {

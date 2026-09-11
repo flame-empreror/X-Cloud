@@ -22,49 +22,26 @@ export default function ChannelSelect({ onChatSelect }: ChannelSelectProps) {
     setError('');
 
     try {
-      const response = await mtprotoService.getDialogs();
-      const { dialogs, chats, channels } = response;
+      const dialogs = await mtprotoService.getDialogs();
       
-      // Create a map of chat/channel IDs to their info
-      const chatMap = new Map<number, any>();
+      console.log('[ChannelSelect] Received dialogs:', dialogs);
       
-      // Add regular chats
-      chats.forEach((chat: any) => {
-        chatMap.set(chat.id, {
-          title: chat.title || 'Unknown Chat',
-          type: 'group' as const,
-        });
-      });
-      
-      // Add channels
-      channels.forEach((channel: any) => {
-        chatMap.set(channel.id, {
-          title: channel.title || 'Unknown Channel',
-          type: 'channel' as const,
-        });
-      });
-      
-      // Filter and map dialogs to TelegramChat objects
+      // Filter only groups and channels, and map to TelegramChat format
       const groups: TelegramChat[] = dialogs
         .filter((d: any) => {
-          const peer = d.peer;
-          return peer._ === 'peerChat' || peer._ === 'peerChannel';
+          // Only include groups and channels, not individual chats
+          return d.type === 'group' || d.type === 'channel';
         })
-        .map((d: any) => {
-          const peer = d.peer;
-          const chatId = peer.chat_id || peer.channel_id;
-          const chatInfo = chatMap.get(chatId);
-          
-          return {
-            id: chatId,
-            title: chatInfo?.title || 'Unknown',
-            type: chatInfo?.type || (peer._ === 'peerChannel' ? 'channel' : 'group') as 'channel' | 'group',
-          };
-        })
-        .filter((chat: TelegramChat) => chat.title !== 'Unknown'); // Filter out unknown chats
+        .map((d: any) => ({
+          id: d.id,
+          title: d.title || 'Unknown',
+          type: d.type as 'channel' | 'group',
+        }));
 
+      console.log('[ChannelSelect] Filtered groups:', groups);
       setChats(groups);
     } catch (err: any) {
+      console.error('[ChannelSelect] Error loading chats:', err);
       setError(err.message || 'Failed to load chats');
     } finally {
       setLoading(false);
