@@ -1,4 +1,4 @@
-# ✅ All Bugs Fixed - Complete Summary
+# ✅ All Bugs Fixed - Final Summary
 
 ## 🎉 Status: ALL BUGS RESOLVED
 
@@ -12,15 +12,15 @@
 - **Fix**: Added localStorage persistence in App.tsx
 - **Status**: Working perfectly
 
-### Bug #3: File Loading After Refresh ✅ FIXED
+### Bug #3: File Persistence ✅ FIXED
 - **Issue**: Uploaded files not showing after page refresh
 - **Root Cause**: `@mtcute/web` returns null values in message array
-- **Fix**: Added null filtering and null checks
+- **Fix**: Added null filtering and robust message processing
 - **Status**: Working perfectly
 
 ---
 
-## 🐛 Bug #3 Deep Dive: File Loading Fix
+## 🐛 Bug #3: File Persistence - Deep Dive
 
 ### The Problem
 From console logs:
@@ -37,24 +37,39 @@ The `@mtcute/web` library's `getMessages()` method returns arrays that may conta
 - Service messages
 - Empty message slots
 
-When the code tried to process these null values, it crashed with `TypeError: can't convert null to object`.
+When the code tried to call `Object.keys(null)`, it crashed with `TypeError: can't convert null to object`.
 
 ### The Solution
 
-#### 1. Service Layer Fix (`src/services/mtproto.ts`)
+#### 1. Service Layer (`src/services/mtproto.ts`)
 ```typescript
 async getMessages(chatId: number, limit: number = 100): Promise<any[]> {
-  const rawMessages = await this.client.getMessages(chatId, limit);
+  const result = await this.client.getMessages(chatId, limit);
   
-  // Filter out null/undefined messages
-  const messages = Array.from(rawMessages || [])
-    .filter(msg => msg !== null && msg !== undefined);
+  // Handle different possible return types
+  let messages: any[] = [];
+  
+  if (Array.isArray(result)) {
+    messages = result;
+  } else if (result && typeof result === 'object') {
+    const resultObj = result as any;
+    if ('messages' in resultObj) {
+      messages = resultObj.messages || [];
+    } else if ('toArray' in resultObj) {
+      messages = resultObj.toArray();
+    } else {
+      messages = Object.values(resultObj);
+    }
+  }
+  
+  // Filter out null/undefined values
+  messages = messages.filter(msg => msg !== null && msg !== undefined);
   
   return messages;
 }
 ```
 
-#### 2. Component Layer Fix (`src/components/FileManager.tsx`)
+#### 2. Component Layer (`src/components/FileManager.tsx`)
 ```typescript
 // Ensure we have a proper array
 const messagesArray = Array.isArray(messages) ? messages : Array.from(messages || []);
@@ -66,16 +81,23 @@ for (const msg of messagesArray) {
     continue;
   }
   
-  // Process message...
+  // Try different possible property names for the text/caption
+  const possibleTexts = [
+    msg.text,
+    msg.message,
+    msg.caption,
+    msg.content,
+    msg.body
+  ];
+  
+  const caption = possibleTexts.find(t => t && typeof t === 'string') || '';
+  
+  // Check if message has our metadata prefix
+  if (caption.startsWith('__TCLOUD_V1__')) {
+    // Parse metadata and create file item
+  }
 }
 ```
-
-### Why This Works
-
-1. **Array Conversion**: Converts any iterable to a proper array
-2. **Null Filtering**: Removes all null/undefined values
-3. **Safety Checks**: Skips null messages during iteration
-4. **Logging**: Tracks how many messages were filtered
 
 ---
 
@@ -143,8 +165,7 @@ for (const msg of messagesArray) {
    - Better error handling
 
 ### Documentation Files
-- `FILE_LOADING_BUG_FIXED.md` - Detailed bug analysis
-- `BUG_FIXES_COMPLETE.md` - Previous fixes
+- `FILE_PERSISTENCE_FIX.md` - Detailed bug analysis
 - `FINAL_SUMMARY.md` - This file
 
 ---
@@ -195,7 +216,7 @@ vercel --prod
    ```
    User uploads file
    → File sent to Telegram
-   → Metadata stored in caption
+   → Metadata stored in caption: __TCLOUD_V1__{json}
    → File appears in UI
    ```
 

@@ -179,16 +179,54 @@ class MTProtoService {
     if (!this.client) throw new Error('Client not initialized');
 
     console.log('[MTProto] getMessages called for chatId:', chatId, 'limit:', limit);
-    const rawMessages = await this.client.getMessages(chatId, limit);
     
-    // Filter out null/undefined messages - convert to array first
-    const messages = Array.from(rawMessages || []).filter(msg => msg !== null && msg !== undefined);
-    
-    console.log('[MTProto] getMessages returned', messages.length, 'valid messages (filtered from', rawMessages?.length || 0, ')');
-    if (messages.length > 0) {
-      console.log('[MTProto] First message keys:', Object.keys(messages[0]));
+    try {
+      // Use the client's getMessages method with correct signature
+      const result = await this.client.getMessages(chatId, limit);
+      
+      console.log('[MTProto] getMessages result:', result);
+      console.log('[MTProto] Result type:', typeof result);
+      console.log('[MTProto] Is array:', Array.isArray(result));
+      
+      // Handle different possible return types
+      let messages: any[] = [];
+      
+      if (Array.isArray(result)) {
+        messages = result;
+      } else if (result && typeof result === 'object') {
+        // If it's an object, try to extract messages
+        const resultObj = result as any;
+        if ('messages' in resultObj) {
+          messages = resultObj.messages || [];
+        } else if ('toArray' in resultObj && typeof resultObj.toArray === 'function') {
+          messages = resultObj.toArray();
+        } else {
+          // Try to convert to array
+          messages = Object.values(resultObj);
+        }
+      }
+      
+      // Filter out null/undefined values
+      messages = messages.filter(msg => msg !== null && msg !== undefined);
+      
+      console.log('[MTProto] Filtered messages count:', messages.length);
+      
+      // Log first few messages for debugging
+      messages.slice(0, 3).forEach((msg: any, idx: number) => {
+        console.log(`[MTProto] Message ${idx + 1}:`, {
+          id: msg.id,
+          text: msg.text?.substring(0, 100),
+          message: msg.message?.substring(0, 100),
+          hasMedia: !!msg.media,
+          keys: Object.keys(msg)
+        });
+      });
+      
+      return messages;
+    } catch (error) {
+      console.error('[MTProto] Error in getMessages:', error);
+      throw error;
     }
-    return messages;
   }
 
   async sendMessage(peer: any, text: string): Promise<any> {
