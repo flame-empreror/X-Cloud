@@ -146,6 +146,13 @@ class MTProtoService {
     return messages;
   }
 
+  async getMessages(chatId: number, limit: number = 100): Promise<any[]> {
+    if (!this.client) throw new Error('Client not initialized');
+
+    const messages = await this.client.getMessages(chatId, limit);
+    return messages;
+  }
+
   async sendMessage(peer: any, text: string): Promise<any> {
     if (!this.client) throw new Error('Client not initialized');
 

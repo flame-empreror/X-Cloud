@@ -1,21 +1,72 @@
 import { useState, useEffect } from 'react';
-import { telegramService } from '../services/telegram';
-import { FileItem, TransferItem } from '../types';
+import { mtprotoService } from '../services/mtproto';
+import { FileItem, TransferItem, TelegramChat } from '../types';
 import { formatFileSize, getFileIconComponent } from '../utils/fileUtils';
+import { Upload, Download, Trash2, Folder, Grid, List, LogOut } from 'lucide-react';
 
 interface FileManagerProps {
-  chatId: number;
+  chat: TelegramChat;
   files: FileItem[];
   setFiles: (files: FileItem[]) => void;
   onLogout: () => void;
 }
 
-export default function FileManager({ chatId, files, setFiles, onLogout }: FileManagerProps) {
+export default function FileManager({ chat, files, setFiles, onLogout }: FileManagerProps) {
   const [currentPath, setCurrentPath] = useState('/');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [transfers, setTransfers] = useState<TransferItem[]>([]);
   const [showTransfers, setShowTransfers] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+
+  // Load chat history on mount
+  useEffect(() => {
+    loadChatHistory();
+  }, [chat.id]);
+
+  const loadChatHistory = async () => {
+    setIsLoadingHistory(true);
+    try {
+      console.log('[FileManager] Loading chat history...');
+      const messages = await mtprotoService.getMessages(chat.id, 100);
+      
+      const loadedFiles: FileItem[] = [];
+      
+      for (const msg of messages) {
+        // Check if message has our metadata prefix
+        const caption = msg.message || '';
+        if (caption.startsWith('__TCLOUD_V1__')) {
+          try {
+            const metadata = JSON.parse(caption.substring('__TCLOUD_V1__'.length));
+            
+            const fileItem: FileItem = {
+              id: msg.id.toString(),
+              name: metadata.name || 'Unknown',
+              path: metadata.path || '/',
+              size: metadata.size || 0,
+              type: 'file',
+              mimeType: metadata.mimeType || '',
+              extension: metadata.extension || '',
+              telegramMessageId: msg.id,
+              telegramFileId: msg.media ? (msg.media as any).document?.id?.toString() : undefined,
+              createdAt: metadata.createdAt || msg.date * 1000,
+              modifiedAt: msg.date * 1000,
+            };
+            
+            loadedFiles.push(fileItem);
+          } catch (e) {
+            console.error('Failed to parse file metadata:', e);
+          }
+        }
+      }
+      
+      console.log('[FileManager] Loaded', loadedFiles.length, 'files');
+      setFiles(loadedFiles);
+    } catch (error) {
+      console.error('[FileManager] Failed to load chat history:', error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
 
   const currentFiles = files.filter(f => f.path === currentPath);
   const folders = currentFiles.filter(f => f.type === 'folder');
@@ -55,29 +106,18 @@ export default function FileManager({ chatId, files, setFiles, onLogout }: FileM
 
         const caption = `__TCLOUD_V1__${JSON.stringify(metadata)}`;
 
-        const result = await telegramService.sendDocument(
-          chatId,
-          file,
-          caption,
-          (progress) => {
-            setTransfers(prev => prev.map(t => 
-              t.id === transferId 
-                ? { ...t, progress, transferred: Math.round(file.size * progress / 100) }
-                : t
-            ));
-          }
-        );
+        const result = await mtprotoService.sendFile(chat.id, file, caption);
 
         const newFile: FileItem = {
-          id: result.message_id.toString(),
+          id: result.id.toString(),
           name: file.name,
           path: currentPath,
           size: file.size,
           type: 'file',
           mimeType: file.type,
           extension: file.name.split('.').pop() || '',
-          telegramMessageId: result.message_id,
-          telegramFileId: result.document.file_id,
+          telegramMessageId: result.id,
+          telegramFileId: result.media?.document?.id?.toString(),
           createdAt: Date.now(),
           modifiedAt: Date.now(),
         };
@@ -88,6 +128,7 @@ export default function FileManager({ chatId, files, setFiles, onLogout }: FileM
           t.id === transferId ? { ...t, status: 'completed', progress: 100 } : t
         ));
       } catch (error: any) {
+        console.error('[FileManager] Upload failed:', error);
         setTransfers(prev => prev.map(t => 
           t.id === transferId ? { ...t, status: 'error', error: error.message } : t
         ));
@@ -98,7 +139,7 @@ export default function FileManager({ chatId, files, setFiles, onLogout }: FileM
   };
 
   const handleDownload = async (file: FileItem) => {
-    if (!file.telegramFileId) return;
+    if (!file.telegramMessageId) return;
 
     const transferId = `download-${Date.now()}`;
     const transfer: TransferItem = {
@@ -116,18 +157,16 @@ export default function FileManager({ chatId, files, setFiles, onLogout }: FileM
     setShowTransfers(true);
 
     try {
-      const fileInfo = await telegramService.getFile(file.telegramFileId);
-      const blob = await telegramService.downloadFile(
-        fileInfo.file_path,
-        (progress, speed) => {
-          setTransfers(prev => prev.map(t => 
-            t.id === transferId 
-              ? { ...t, progress, speed, transferred: Math.round(file.size * progress / 100) }
-              : t
-          ));
-        }
-      );
+      // Get the message to access its media
+      const messages = await mtprotoService.getMessages(chat.id, 100);
+      const message = messages.find((m: any) => m.id === file.telegramMessageId);
+      
+      if (!message || !message.media) {
+        throw new Error('File not found');
+      }
 
+      const blob = await mtprotoService.downloadMedia(message.media);
+      
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -141,6 +180,7 @@ export default function FileManager({ chatId, files, setFiles, onLogout }: FileM
         t.id === transferId ? { ...t, status: 'completed', progress: 100 } : t
       ));
     } catch (error: any) {
+      console.error('[FileManager] Download failed:', error);
       setTransfers(prev => prev.map(t => 
         t.id === transferId ? { ...t, status: 'error', error: error.message } : t
       ));
@@ -153,9 +193,10 @@ export default function FileManager({ chatId, files, setFiles, onLogout }: FileM
     if (!confirm(`Delete ${file.name}?`)) return;
 
     try {
-      await telegramService.deleteMessage(chatId, file.telegramMessageId);
+      await mtprotoService.deleteMessage(chat.id, file.telegramMessageId);
       setFiles(files.filter(f => f.id !== file.id));
     } catch (error) {
+      console.error('[FileManager] Delete failed:', error);
       alert('Failed to delete file');
     }
   };
@@ -171,6 +212,22 @@ export default function FileManager({ chatId, files, setFiles, onLogout }: FileM
     setCurrentPath(parts.length === 0 ? '/' : '/' + parts.join('/'));
   };
 
+  if (isLoadingHistory) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/50 animate-pulse">
+            <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.75 3.99-1.73 6.65-2.87 7.95-3.44 3.79-1.58 4.57-1.85 5.08-1.86.11 0 .37.03.54.17.14.12.18.28.2.45-.01.06.01.24 0 .38z"/>
+            </svg>
+          </div>
+          <h2 className="text-white text-xl font-bold mb-2">Loading Files...</h2>
+          <p className="text-gray-400 text-sm">Reading chat history</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Header */}
@@ -184,7 +241,7 @@ export default function FileManager({ chatId, files, setFiles, onLogout }: FileM
                 </svg>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white">TeleCloud</h1>
+                <h1 className="text-xl font-bold text-white">{chat.title}</h1>
                 <p className="text-xs text-gray-400">{currentPath}</p>
               </div>
             </div>
@@ -203,8 +260,9 @@ export default function FileManager({ chatId, files, setFiles, onLogout }: FileM
               </button>
               <button
                 onClick={onLogout}
-                className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-xl text-red-400 text-sm transition-all"
+                className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-xl text-red-400 text-sm transition-all flex items-center gap-2"
               >
+                <LogOut className="w-4 h-4" />
                 Logout
               </button>
             </div>
@@ -227,7 +285,8 @@ export default function FileManager({ chatId, files, setFiles, onLogout }: FileM
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:shadow-lg hover:shadow-blue-500/50 rounded-xl text-white text-sm font-semibold cursor-pointer transition-all">
+            <label className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:shadow-lg hover:shadow-blue-500/50 rounded-xl text-white text-sm font-semibold cursor-pointer transition-all flex items-center gap-2">
+              <Upload className="w-4 h-4" />
               <input
                 type="file"
                 multiple
@@ -238,8 +297,9 @@ export default function FileManager({ chatId, files, setFiles, onLogout }: FileM
             </label>
             <button
               onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-              className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-sm transition-all"
+              className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-sm transition-all flex items-center gap-2"
             >
+              {viewMode === 'grid' ? <List className="w-4 h-4" /> : <Grid className="w-4 h-4" />}
               {viewMode === 'grid' ? 'List' : 'Grid'}
             </button>
           </div>
@@ -304,9 +364,7 @@ export default function FileManager({ chatId, files, setFiles, onLogout }: FileM
                 className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-4 cursor-pointer transition-all"
               >
                 <div className="w-12 h-12 mx-auto mb-2 bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-amber-400" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
-                  </svg>
+                  <Folder className="w-6 h-6 text-amber-400" />
                 </div>
                 <p className="text-white text-sm text-center truncate">{folder.name}</p>
               </div>
@@ -326,15 +384,16 @@ export default function FileManager({ chatId, files, setFiles, onLogout }: FileM
                   <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => handleDownload(file)}
-                      className="flex-1 px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg text-blue-400 text-xs"
+                      className="flex-1 px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg text-blue-400 text-xs flex items-center justify-center gap-1"
                     >
+                      <Download className="w-3 h-3" />
                       Download
                     </button>
                     <button
                       onClick={() => handleDelete(file)}
                       className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-red-400 text-xs"
                     >
-                      Delete
+                      <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
                 </div>
@@ -350,9 +409,7 @@ export default function FileManager({ chatId, files, setFiles, onLogout }: FileM
                 className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-4 cursor-pointer transition-all flex items-center gap-3"
               >
                 <div className="w-10 h-10 bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-xl flex items-center justify-center">
-                  <svg className="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
-                  </svg>
+                  <Folder className="w-5 h-5 text-amber-400" />
                 </div>
                 <div className="flex-1">
                   <p className="text-white text-sm">{folder.name}</p>
@@ -377,15 +434,16 @@ export default function FileManager({ chatId, files, setFiles, onLogout }: FileM
                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => handleDownload(file)}
-                      className="px-3 py-1 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg text-blue-400 text-xs"
+                      className="px-3 py-1 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg text-blue-400 text-xs flex items-center gap-1"
                     >
+                      <Download className="w-3 h-3" />
                       Download
                     </button>
                     <button
                       onClick={() => handleDelete(file)}
                       className="px-3 py-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-red-400 text-xs"
                     >
-                      Delete
+                      <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
                 </div>

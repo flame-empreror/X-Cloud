@@ -1,18 +1,17 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Hash, MessageSquare, ArrowLeft } from 'lucide-react';
+import { Users, Hash, MessageSquare } from 'lucide-react';
 import { mtprotoService } from '../services/mtproto';
-import { useAppStore } from '../store';
+import { TelegramChat } from '../types';
 
 interface ChannelSelectProps {
-  onSelect: () => void;
+  onChatSelect: (chat: TelegramChat) => void;
 }
 
-export default function ChannelSelect({ onSelect }: ChannelSelectProps) {
-  const [chats, setChats] = useState<any[]>([]);
+export default function ChannelSelect({ onChatSelect }: ChannelSelectProps) {
+  const [chats, setChats] = useState<TelegramChat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const { setSelectedChannel } = useAppStore();
 
   useEffect(() => {
     loadChats();
@@ -26,7 +25,7 @@ export default function ChannelSelect({ onSelect }: ChannelSelectProps) {
       const dialogs = await mtprotoService.getDialogs();
       
       // Filter only groups and channels
-      const groups = dialogs
+      const groups: TelegramChat[] = dialogs
         .filter((d: any) => {
           const peer = d.peer;
           return peer._ === 'peerChat' || peer._ === 'peerChannel';
@@ -34,7 +33,7 @@ export default function ChannelSelect({ onSelect }: ChannelSelectProps) {
         .map((d: any) => ({
           id: d.peer.chat_id || d.peer.channel_id,
           title: d.title || 'Unknown',
-          type: d.peer._ === 'peerChannel' ? 'channel' : 'group',
+          type: (d.peer._ === 'peerChannel' ? 'channel' : 'group') as 'channel' | 'group',
         }));
 
       setChats(groups);
@@ -45,9 +44,8 @@ export default function ChannelSelect({ onSelect }: ChannelSelectProps) {
     }
   };
 
-  const handleSelect = (chat: any) => {
-    setSelectedChannel(chat);
-    onSelect();
+  const handleSelect = (chat: TelegramChat) => {
+    onChatSelect(chat);
   };
 
   const getChatIcon = (type: string) => {
