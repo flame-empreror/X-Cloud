@@ -1,116 +1,76 @@
 import { motion } from 'framer-motion';
-import { AlertCircle, ExternalLink } from 'lucide-react';
+import { AlertCircle, ExternalLink, Check } from 'lucide-react';
 
 export default function SetupScreen() {
+  const steps = [
+    { num: 1, title: 'Get API Credentials', desc: 'Visit my.telegram.org and login with your phone number', link: 'https://my.telegram.org' },
+    { num: 2, title: 'Create an Application', desc: 'Click "API development tools" and create a new app' },
+    { num: 3, title: 'Copy Your Credentials', desc: 'Copy your api_id and api_hash values' },
+    { num: 4, title: 'Configure Environment', desc: 'Add VITE_TELEGRAM_API_ID and VITE_TELEGRAM_API_HASH to your hosting' },
+    { num: 5, title: 'Rebuild & Deploy', desc: 'Run npm run build and redeploy your app' },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-      <div className="max-w-2xl w-full">
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
+    <div className="h-screen flex items-center justify-center mesh-gradient relative overflow-hidden p-4">
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-[120px]" />
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-orange-500/4 rounded-full blur-[100px]" />
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="max-w-2xl w-full relative z-10"
+      >
+        <div className="glass-strong rounded-2xl p-8 shadow-2xl">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-500/50">
-              <AlertCircle className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 mx-auto mb-5 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center">
+              <AlertCircle className="w-8 h-8 text-amber-400" />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Setup Required</h1>
-            <p className="text-gray-400">Telegram API credentials need to be configured</p>
+            <h1 className="text-2xl font-bold text-white mb-2">Setup Required</h1>
+            <p className="text-zinc-400 text-sm">Configure Telegram API credentials to continue</p>
           </div>
 
-          <div className="space-y-6">
-            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-6">
-              <h2 className="text-xl font-bold text-white mb-4">What You Need to Do</h2>
-              
-              <div className="space-y-4 text-gray-300">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
-                    1
-                  </div>
-                  <div>
-                    <p className="font-semibold text-white">Get API Credentials from Telegram</p>
-                    <p className="text-sm text-gray-400 mt-1">
-                      Go to <a href="https://my.telegram.org" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline inline-flex items-center gap-1">
-                        my.telegram.org <ExternalLink className="w-3 h-3" />
-                      </a> and login with your phone number
-                    </p>
-                  </div>
+          <div className="space-y-3 mb-6">
+            {steps.map((step, index) => (
+              <motion.div
+                key={step.num}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.08 }}
+                className="flex items-start gap-4 p-4 rounded-xl border"
+                style={{ background: 'var(--surface-2)', borderColor: 'var(--border-subtle)' }}
+              >
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                  {step.num}
                 </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
-                    2
-                  </div>
-                  <div>
-                    <p className="font-semibold text-white">Create an Application</p>
-                    <p className="text-sm text-gray-400 mt-1">
-                      Click "API development tools" and create a new app (any name works)
-                    </p>
-                  </div>
+                <div className="flex-1">
+                  <p className="text-white font-medium text-sm">{step.title}</p>
+                  <p className="text-zinc-400 text-xs mt-0.5">
+                    {step.desc}
+                    {step.link && (
+                      <a href={step.link} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline ml-1 inline-flex items-center gap-0.5">
+                        {step.link} <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </p>
                 </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
-                    3
-                  </div>
-                  <div>
-                    <p className="font-semibold text-white">Copy Your Credentials</p>
-                    <p className="text-sm text-gray-400 mt-1">
-                      Copy your <code className="bg-white/10 px-2 py-0.5 rounded">api_id</code> and <code className="bg-white/10 px-2 py-0.5 rounded">api_hash</code>
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
-                    4
-                  </div>
-                  <div>
-                    <p className="font-semibold text-white">Configure Environment Variables</p>
-                    <p className="text-sm text-gray-400 mt-1">
-                      Add these to your hosting platform's environment variables:
-                    </p>
-                    <div className="mt-2 bg-black/30 rounded-lg p-3 font-mono text-xs">
-                      <p className="text-green-400">VITE_TELEGRAM_API_ID=<span className="text-gray-400">your_api_id</span></p>
-                      <p className="text-green-400">VITE_TELEGRAM_API_HASH=<span className="text-gray-400">your_api_hash</span></p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
-                    5
-                  </div>
-                  <div>
-                    <p className="font-semibold text-white">Rebuild and Deploy</p>
-                    <p className="text-sm text-gray-400 mt-1">
-                      Run <code className="bg-white/10 px-2 py-0.5 rounded">npm run build</code> and redeploy your app
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
-              <p className="text-blue-300 text-sm">
-                <strong>Why is this needed?</strong><br />
-                TeleCloud uses Telegram's MTProto API to access your chat history directly. 
-                This requires API credentials tied to your Telegram account. 
-                The credentials are free to obtain and only take a few minutes to set up.
-              </p>
-            </div>
-
-            <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-4">
-              <p className="text-purple-300 text-sm">
-                <strong>For Vercel Users:</strong><br />
-                Go to your project settings → Environment Variables → Add the two variables above → Redeploy
-              </p>
-            </div>
-
-            <div className="text-center">
-              <p className="text-gray-400 text-sm">
-                After configuring the credentials, refresh this page to continue.
-              </p>
-            </div>
+              </motion.div>
+            ))}
           </div>
+
+          <div className="rounded-xl p-4 mb-4 border" style={{ background: 'rgba(59, 130, 246, 0.06)', borderColor: 'rgba(59, 130, 246, 0.15)' }}>
+            <p className="text-blue-300 text-xs leading-relaxed">
+              <strong>Environment Variables:</strong><br />
+              <code className="bg-black/30 px-1.5 py-0.5 rounded text-[11px] font-mono text-green-300">VITE_TELEGRAM_API_ID</code><br />
+              <code className="bg-black/30 px-1.5 py-0.5 rounded text-[11px] font-mono text-green-300">VITE_TELEGRAM_API_HASH</code>
+            </p>
+          </div>
+
+          <p className="text-center text-zinc-500 text-xs">
+            After configuring, refresh this page to continue
+          </p>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

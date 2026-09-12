@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { X, Zap, Info } from 'lucide-react';
 import { settingsService, DownloadSettings } from '../services/settings';
 
 interface SettingsPanelProps {
@@ -33,81 +35,84 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+        onClick={(e) => e.stopPropagation()}
+        className="glass-strong rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+      >
+        {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white">Download Settings</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+          <div>
+            <h2 className="text-xl font-bold text-white">Download Settings</h2>
+            <p className="text-zinc-500 text-sm mt-0.5">Configure download performance</p>
+          </div>
+          <button onClick={onClose} className="btn btn-ghost p-2 rounded-lg">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Presets */}
         <div className="mb-6">
-          <h3 className="text-lg font-semibold text-white mb-3">Quick Presets</h3>
+          <h3 className="text-sm font-semibold text-white mb-3">Quick Presets</h3>
           <div className="grid grid-cols-3 gap-3">
-            <button
-              onClick={() => handlePresetChange('normal')}
-              className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all"
-            >
-              <div className="text-white font-semibold mb-1">Normal</div>
-              <div className="text-xs text-gray-400">1MB chunks, 1 connection</div>
-            </button>
-            <button
-              onClick={() => handlePresetChange('fast')}
-              className="p-4 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 rounded-xl transition-all"
-            >
-              <div className="text-white font-semibold mb-1">Fast</div>
-              <div className="text-xs text-gray-400">4MB chunks, 2 connections</div>
-            </button>
-            <button
-              onClick={() => handlePresetChange('turbo')}
-              className="p-4 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-xl transition-all"
-            >
-              <div className="text-white font-semibold mb-1">Turbo ⚡</div>
-              <div className="text-xs text-gray-400">8MB chunks, 4 connections</div>
-            </button>
+            {[
+              { key: 'normal' as const, label: 'Normal', desc: '1MB chunks, 1 connection', badge: '' },
+              { key: 'fast' as const, label: 'Fast', desc: '4MB chunks, 2 connections', badge: '' },
+              { key: 'turbo' as const, label: 'Turbo', desc: '8MB chunks, 4 connections', badge: '⚡' },
+            ].map((preset) => (
+              <button
+                key={preset.key}
+                onClick={() => handlePresetChange(preset.key)}
+                className="card p-4 text-left border"
+                style={{ background: 'var(--surface-2)', borderColor: 'var(--border-subtle)' }}
+              >
+                <div className="text-white font-semibold text-sm mb-1">{preset.label} {preset.badge}</div>
+                <div className="text-zinc-500 text-xs">{preset.desc}</div>
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Speed Boost Toggle */}
-        <div className="mb-6 p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-xl">
+        {/* Speed Boost */}
+        <div className="mb-6 rounded-xl p-4 border" style={{ background: 'rgba(139, 92, 246, 0.06)', borderColor: 'rgba(139, 92, 246, 0.15)' }}>
           <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-white mb-1">
-                🚀 Speed Boost (Experimental)
-              </h3>
-              <p className="text-sm text-gray-400">
-                Enable parallel downloads for faster speeds
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/15 flex items-center justify-center">
+                <Zap className="w-5 h-5 text-purple-400" />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold text-sm">Speed Boost</h3>
+                <p className="text-zinc-500 text-xs">Experimental parallel downloads</p>
+              </div>
             </div>
             <button
               onClick={() => handleSettingChange('speedBoost', !settings.speedBoost)}
-              className={`relative w-14 h-7 rounded-full transition-colors ${
-                settings.speedBoost ? 'bg-purple-500' : 'bg-gray-600'
+              className={`relative w-12 h-6 rounded-full transition-colors ${
+                settings.speedBoost ? 'bg-purple-500' : 'bg-zinc-600'
               }`}
             >
-              <div
-                className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-transform ${
-                  settings.speedBoost ? 'translate-x-8' : 'translate-x-1'
-                }`}
-              />
+              <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform ${
+                settings.speedBoost ? 'translate-x-6' : 'translate-x-0.5'
+              }`} />
             </button>
           </div>
         </div>
 
         {/* Chunk Size */}
         <div className="mb-6">
-          <h3 className="text-lg font-semibold text-white mb-3">Chunk Size</h3>
-          <p className="text-sm text-gray-400 mb-3">
-            Larger chunks = fewer requests but more memory usage
-          </p>
-          <div className="grid grid-cols-4 gap-2">
+          <h3 className="text-sm font-semibold text-white mb-1">Chunk Size</h3>
+          <p className="text-zinc-500 text-xs mb-3">Larger chunks = fewer requests</p>
+          <div className="grid grid-cols-3 gap-2">
             {[
               { value: 512 * 1024, label: '512 KB' },
               { value: 1024 * 1024, label: '1 MB' },
@@ -119,79 +124,57 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
               <button
                 key={option.value}
                 onClick={() => handleSettingChange('chunkSize', option.value)}
-                className={`p-3 rounded-xl border transition-all ${
+                className={`p-3 rounded-lg border text-sm font-medium transition-all ${
                   settings.chunkSize === option.value
-                    ? 'bg-blue-500/20 border-blue-500/50 text-white'
-                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                    ? 'bg-blue-500/15 border-blue-500/40 text-white'
+                    : 'border-[var(--border-subtle)] text-zinc-400 hover:text-white hover:bg-[var(--surface-3)]'
                 }`}
+                style={{ borderColor: settings.chunkSize === option.value ? 'rgba(59, 130, 246, 0.4)' : 'var(--border-subtle)' }}
               >
-                <div className="text-sm font-semibold">{option.label}</div>
+                {option.label}
               </button>
             ))}
           </div>
-          <div className="mt-2 text-xs text-gray-500">
-            Current: {formatBytes(settings.chunkSize)}
-          </div>
         </div>
 
-        {/* Parallel Downloads */}
+        {/* Parallel Connections */}
         <div className="mb-6">
-          <h3 className="text-lg font-semibold text-white mb-3">Parallel Connections</h3>
-          <p className="text-sm text-gray-400 mb-3">
-            Download multiple chunks simultaneously (requires Speed Boost)
-          </p>
+          <h3 className="text-sm font-semibold text-white mb-1">Parallel Connections</h3>
+          <p className="text-zinc-500 text-xs mb-3">Download chunks simultaneously</p>
           <div className="grid grid-cols-4 gap-2">
             {[1, 2, 4, 8].map((num) => (
               <button
                 key={num}
                 onClick={() => handleSettingChange('parallelDownloads', num)}
                 disabled={!settings.speedBoost}
-                className={`p-3 rounded-xl border transition-all ${
+                className={`p-3 rounded-lg border text-sm font-medium transition-all ${
                   settings.parallelDownloads === num
-                    ? 'bg-blue-500/20 border-blue-500/50 text-white'
-                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
-                } ${!settings.speedBoost ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    ? 'bg-blue-500/15 border-blue-500/40 text-white'
+                    : 'border-[var(--border-subtle)] text-zinc-400 hover:text-white hover:bg-[var(--surface-3)]'
+                } ${!settings.speedBoost ? 'opacity-40 cursor-not-allowed' : ''}`}
+                style={{ borderColor: settings.parallelDownloads === num ? 'rgba(59, 130, 246, 0.4)' : 'var(--border-subtle)' }}
               >
-                <div className="text-sm font-semibold">{num}</div>
-                <div className="text-xs text-gray-500">
-                  {num === 1 ? 'Sequential' : 'Parallel'}
-                </div>
+                <div>{num}x</div>
+                <div className="text-[10px] text-zinc-500 mt-0.5">{num === 1 ? 'Seq' : 'Parallel'}</div>
               </button>
             ))}
           </div>
-          <div className="mt-2 text-xs text-gray-500">
-            Current: {settings.parallelDownloads} connection{settings.parallelDownloads > 1 ? 's' : ''}
-          </div>
         </div>
 
-        {/* Info Box */}
-        <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
-          <h4 className="text-white font-semibold mb-2">💡 Tips</h4>
-          <ul className="text-sm text-gray-300 space-y-1">
-            <li>• <strong>Normal:</strong> Best for small files and stable connections</li>
-            <li>• <strong>Fast:</strong> Good balance for most files</li>
-            <li>• <strong>Turbo:</strong> Best for large files on fast connections</li>
-            <li>• Parallel downloads use more bandwidth but complete faster</li>
-            <li>• Larger chunks reduce API calls but use more memory</li>
-          </ul>
+        {/* Info */}
+        <div className="rounded-xl p-4 mb-6 border flex gap-3" style={{ background: 'rgba(59, 130, 246, 0.06)', borderColor: 'rgba(59, 130, 246, 0.15)' }}>
+          <Info className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+          <p className="text-zinc-300 text-xs leading-relaxed">
+            <strong>Tips:</strong> Normal is best for small files. Use Turbo for large files on fast connections. Parallel connections use more bandwidth.
+          </p>
         </div>
 
-        {/* Action Buttons */}
+        {/* Actions */}
         <div className="flex gap-3">
-          <button
-            onClick={handleReset}
-            className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white transition-all"
-          >
-            Reset to Defaults
-          </button>
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl text-white font-semibold transition-all"
-          >
-            Save & Close
-          </button>
+          <button onClick={handleReset} className="btn btn-secondary flex-1">Reset</button>
+          <button onClick={onClose} className="btn btn-primary flex-1">Done</button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
