@@ -22,8 +22,6 @@ interface FileManagerProps {
 
 export default function FileManager({ chat, files, setFiles, onLogout, currentPath, setCurrentPath }: FileManagerProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [transfers, setTransfers] = useState<TransferItem[]>([]);
-  const [showTransfers, setShowTransfers] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
@@ -34,7 +32,7 @@ export default function FileManager({ chat, files, setFiles, onLogout, currentPa
   const [newName, setNewName] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { pinnedFolders, pinFolder, unpinFolder } = useAppStore();
+  const { pinnedFolders, pinFolder, unpinFolder, transfers, addTransfer, updateTransfer } = useAppStore();
 
   useEffect(() => { loadChatHistory(); }, [chat.id]);
 
@@ -82,11 +80,13 @@ export default function FileManager({ chat, files, setFiles, onLogout, currentPa
     for (let i = 0; i < fileList.length; i++) {
       const file = fileList[i];
       const transferId = `upload-${Date.now()}-${i}`;
+      const abortController = new AbortController();
       const transfer: TransferItem = {
         id: transferId, fileName: file.name, type: 'upload',
         progress: 0, status: 'active', size: file.size, transferred: 0, path: currentPath,
+        abortController,
       };
-      setTransfers(prev => [...prev, transfer]);
+      addTransfer(transfer);
       try {
         const metadata = {
           name: file.name, path: currentPath, size: file.size,
@@ -94,15 +94,17 @@ export default function FileManager({ chat, files, setFiles, onLogout, currentPa
         };
         const caption = `__TCLOUD_V1__${JSON.stringify(metadata)}`;
         await mtprotoService.sendFile(chat.id, file, caption, (progress) => {
-          setTransfers(prev => prev.map(t =>
-            t.id === transferId ? { ...t, progress, transferred: Math.round(file.size * progress / 100) } : t
-          ));
-        });
-        setTransfers(prev => prev.map(t => t.id === transferId ? { ...t, status: 'completed', progress: 100 } : t));
+          updateTransfer(transferId, { progress, transferred: Math.round(file.size * progress / 100) });
+        }, abortController.signal);
+        updateTransfer(transferId, { status: 'completed', progress: 100 });
         await loadChatHistory();
-      } catch (error) {
-        console.error('[FileManager] Upload failed:', error);
-        setTransfers(prev => prev.map(t => t.id === transferId ? { ...t, status: 'error', error: 'Upload failed' } : t));
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          updateTransfer(transferId, { status: 'cancelled' });
+        } else {
+          console.error('[FileManager] Upload failed:', error);
+          updateTransfer(transferId, { status: 'error', error: 'Upload failed' });
+        }
       }
     }
     e.target.value = '';
@@ -117,43 +119,39 @@ export default function FileManager({ chat, files, setFiles, onLogout, currentPa
       progress: 0, status: 'active', size: file.size, transferred: 0, path: file.path,
       abortController,
     };
-    setTransfers(prev => [...prev, transfer]);
+    addTransfer(transfer);
     try {
       const messages = await mtprotoService.getMessages(chat.id, 100, chat.inputPeer);
       const message = messages.find((m: any) => m.id === file.telegramMessageId);
       if (!message || !message.media) throw new Error('File not found');
       const blob = await mtprotoService.downloadMedia(message, (progress) => {
-        setTransfers(prev => prev.map(t =>
-          t.id === transferId ? { ...t, progress, transferred: Math.round(file.size * progress / 100) } : t
-        ));
+        updateTransfer(transferId, { progress, transferred: Math.round(file.size * progress / 100) });
       }, abortController.signal);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = file.name;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      setTransfers(prev => prev.map(t => t.id === transferId ? { ...t, status: 'completed', progress: 100 } : t));
+      updateTransfer(transferId, { status: 'completed', progress: 100 });
     } catch (error: any) {
       if (error.name === 'AbortError') {
-        setTransfers(prev => prev.map(t => t.id === transferId ? { ...t, status: 'cancelled' } : t));
+        updateTransfer(transferId, { status: 'cancelled' });
       } else {
         console.error('[FileManager] Download failed:', error);
-        setTransfers(prev => prev.map(t => t.id === transferId ? { ...t, status: 'error', error: 'Download failed' } : t));
+        updateTransfer(transferId, { status: 'error', error: 'Download failed' });
       }
     }
   };
 
   const handleCancelTransfer = (transferId: string) => {
-    setTransfers(prev => prev.map(t => {
-      if (t.id === transferId) {
-        // Abort the download if it has an abort controller
-        if (t.abortController) {
-          t.abortController.abort();
-        }
-        return { ...t, status: 'cancelled' };
+    const transfer = transfers.find(t => t.id === transferId);
+    if (transfer) {
+      // Abort the transfer if it has an abort controller
+      if (transfer.abortController) {
+        transfer.abortController.abort();
       }
-      return t;
-    }));
+      updateTransfer(transferId, { status: 'cancelled' });
+    }
   };
 
   const handlePinFolder = (folder: FileItem) => {
@@ -265,15 +263,6 @@ export default function FileManager({ chat, files, setFiles, onLogout, currentPa
               <Settings className="w-4 h-4" />
               <span className="hidden sm:inline">Settings</span>
             </button>
-            <button onClick={() => setShowTransfers(!showTransfers)} className="btn btn-ghost relative">
-              <Upload className="w-4 h-4" />
-              <span className="hidden sm:inline">Transfers</span>
-              {activeTransfers.length > 0 && (
-                <span className="badge badge-accent absolute -top-1 -right-1">
-                  {activeTransfers.length}
-                </span>
-              )}
-            </button>
             <button onClick={onLogout} className="btn btn-danger">
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Logout</span>
@@ -340,54 +329,6 @@ export default function FileManager({ chat, files, setFiles, onLogout, currentPa
           </div>
         </div>
       </div>
-
-      {/* Transfers Panel */}
-      <AnimatePresence>
-        {showTransfers && transfers.length > 0 && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)' }}
-          >
-            <div className="max-w-[1600px] mx-auto px-6 py-3">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                  <Upload className="w-4 h-4" style={{ color: 'var(--accent)' }} />
-                  Transfers
-                  {activeTransfers.length > 0 && (
-                    <span className="badge badge-accent">{activeTransfers.length} active</span>
-                  )}
-                </h3>
-                <button onClick={() => setShowTransfers(false)} className="btn btn-ghost p-1">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {transfers.slice(0, 5).map((transfer) => (
-                  <div key={transfer.id} className="card p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-medium truncate flex-1 mr-3" style={{ color: 'var(--text-primary)' }}>{transfer.fileName}</span>
-                      <span className={`badge ${
-                        transfer.status === 'completed' ? 'badge-success' :
-                        transfer.status === 'error' ? 'badge-error' : 'badge-info'
-                      }`}>
-                        {transfer.status === 'active' ? `${Math.round(transfer.progress)}%` : transfer.status}
-                      </span>
-                    </div>
-                    {transfer.status === 'active' && (
-                      <div className="progress-bar">
-                        <div className="progress-bar-fill" style={{ width: `${transfer.progress}%` }} />
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* File Grid/List */}
       <div className="flex-1 overflow-y-auto">

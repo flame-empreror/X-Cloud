@@ -90,10 +90,7 @@ export default function PersistentSidebar({ activeTab, onTabChange, onFolderClic
         })}
         
         {/* Transfers Section - Expands when there are active transfers */}
-        <motion.div
-          animate={{ height: activeTransfers.length > 0 ? 'auto' : 'auto' }}
-          className="mt-2"
-        >
+        <div className="mt-2">
           <div className="card overflow-hidden">
             <button
               onClick={() => activeTransfers.length > 0 && setShowAllTransfers(!showAllTransfers)}
@@ -117,13 +114,15 @@ export default function PersistentSidebar({ activeTab, onTabChange, onFolderClic
               )}
             </button>
             
-            <AnimatePresence>
+            <AnimatePresence initial={false}>
               {activeTransfers.length > 0 && (
                 <motion.div
+                  key="transfers-content"
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden"
+                  transition={{ duration: 0.3, ease: 'easeInOut' }}
+                  style={{ overflow: 'hidden' }}
                 >
                   <div className="px-4 pb-3 space-y-2">
                     {(showAllTransfers ? activeTransfers : previewTransfers).map((transfer) => (
@@ -174,7 +173,7 @@ export default function PersistentSidebar({ activeTab, onTabChange, onFolderClic
               )}
             </AnimatePresence>
           </div>
-        </motion.div>
+        </div>
       </nav>
 
       {/* Pinned Folders */}

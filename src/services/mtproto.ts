@@ -270,8 +270,13 @@ class MTProtoService {
     return await this.client.sendText(peer, text);
   }
 
-  async sendFile(peer: any, file: File, caption: string, onProgress?: (progress: number) => void): Promise<any> {
+  async sendFile(peer: any, file: File, caption: string, onProgress?: (progress: number) => void, signal?: AbortSignal): Promise<any> {
     if (!this.client) throw new Error('Client not initialized');
+
+    // Check if upload was cancelled before starting
+    if (signal?.aborted) {
+      throw new DOMException('Upload was cancelled', 'AbortError');
+    }
 
     // Track upload progress
     const totalSize = file.size;
@@ -280,6 +285,10 @@ class MTProtoService {
 
     // Simulate progress updates during upload
     const progressInterval = setInterval(() => {
+      if (signal?.aborted) {
+        clearInterval(progressInterval);
+        return;
+      }
       if (onProgress && uploadedSize < totalSize) {
         // Estimate progress based on time elapsed
         const elapsed = Date.now() - startTime;
@@ -295,13 +304,25 @@ class MTProtoService {
       }));
 
       clearInterval(progressInterval);
+      
+      // Check if cancelled during upload
+      if (signal?.aborted) {
+        throw new DOMException('Upload was cancelled', 'AbortError');
+      }
+      
       if (onProgress) {
         onProgress(100);
       }
 
       return result;
-    } catch (error) {
+    } catch (error: any) {
       clearInterval(progressInterval);
+      
+      // Check if it was an abort error
+      if (error.name === 'AbortError' || signal?.aborted) {
+        throw new DOMException('Upload was cancelled', 'AbortError');
+      }
+      
       throw error;
     }
   }
