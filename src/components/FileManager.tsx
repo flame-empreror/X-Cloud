@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { mtprotoService } from '../services/mtproto';
 import { FileItem, TransferItem, TelegramChat } from '../types';
 import { formatFileSize, getFileIconComponent } from '../utils/fileUtils';
-import { Upload, Download, Trash2, Folder, Grid, List, LogOut } from 'lucide-react';
+import { Upload, Download, Trash2, Folder, Grid, List, LogOut, Settings, FolderPlus } from 'lucide-react';
+import SettingsPanel from './SettingsPanel';
 
 interface FileManagerProps {
   chat: TelegramChat;
@@ -17,6 +18,9 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
   const [transfers, setTransfers] = useState<TransferItem[]>([]);
   const [showTransfers, setShowTransfers] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
 
   // Load chat history on mount
   useEffect(() => {
@@ -69,7 +73,7 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
               name: metadata.name || 'Unknown',
               path: metadata.path || '/',
               size: metadata.size || 0,
-              type: 'file',
+              type: metadata.isFolder ? 'folder' : 'file',
               mimeType: metadata.mimeType || '',
               extension: metadata.extension || '',
               telegramMessageId: msg.id,
@@ -264,6 +268,53 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
     setCurrentPath(parts.length === 0 ? '/' : '/' + parts.join('/'));
   };
 
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) {
+      alert('Please enter a folder name');
+      return;
+    }
+
+    try {
+      console.log('[FileManager] Creating folder:', newFolderName);
+      
+      // Create folder metadata
+      const folderMetadata = {
+        name: newFolderName.trim(),
+        path: currentPath,
+        size: 0,
+        mimeType: 'folder',
+        extension: '',
+        createdAt: Date.now(),
+        isFolder: true,
+      };
+
+      // Send folder metadata as a message
+      const caption = `__TCLOUD_V1__${JSON.stringify(folderMetadata)}`;
+      await mtprotoService.sendMessage(chat.id, caption);
+
+      // Add folder to files list
+      const newFolder: FileItem = {
+        id: `folder_${Date.now()}`,
+        name: newFolderName.trim(),
+        path: currentPath,
+        size: 0,
+        type: 'folder',
+        mimeType: 'folder',
+        extension: '',
+        createdAt: Date.now(),
+        modifiedAt: Date.now(),
+      };
+
+      setFiles([...files, newFolder]);
+      setShowNewFolderDialog(false);
+      setNewFolderName('');
+      console.log('[FileManager] Folder created successfully');
+    } catch (error) {
+      console.error('[FileManager] Failed to create folder:', error);
+      alert('Failed to create folder');
+    }
+  };
+
   if (isLoadingHistory) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
@@ -299,6 +350,13 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowSettings(true)}
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-sm transition-all flex items-center gap-2"
+              >
+                <Settings className="w-4 h-4" />
+                Settings
+              </button>
               <button
                 onClick={() => setShowTransfers(!showTransfers)}
                 className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-sm transition-all relative"
@@ -337,6 +395,13 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowNewFolderDialog(true)}
+              className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-sm transition-all flex items-center gap-2"
+            >
+              <FolderPlus className="w-4 h-4" />
+              New Folder
+            </button>
             <label className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:shadow-lg hover:shadow-blue-500/50 rounded-xl text-white text-sm font-semibold cursor-pointer transition-all flex items-center gap-2">
               <Upload className="w-4 h-4" />
               <input
@@ -504,6 +569,53 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
           </div>
         )}
       </div>
+
+      {/* Settings Panel */}
+      {showSettings && (
+        <SettingsPanel onClose={() => setShowSettings(false)} />
+      )}
+
+      {/* New Folder Dialog */}
+      {showNewFolderDialog && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold text-white mb-4">Create New Folder</h3>
+            <input
+              type="text"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              placeholder="Folder name"
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 mb-4"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleCreateFolder();
+                } else if (e.key === 'Escape') {
+                  setShowNewFolderDialog(false);
+                  setNewFolderName('');
+                }
+              }}
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowNewFolderDialog(false);
+                  setNewFolderName('');
+                }}
+                className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateFolder}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl text-white font-semibold transition-all"
+              >
+                Create Folder
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

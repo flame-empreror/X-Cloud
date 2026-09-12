@@ -1,5 +1,6 @@
 import { TelegramClient, InputMedia } from '@mtcute/web';
 import { Long } from '@mtcute/core';
+import { settingsService } from './settings';
 
 // Type declaration for Vite env
 declare global {
@@ -389,50 +390,117 @@ class MTProtoService {
       
       console.log('[MTProto] Input file location created');
       
-      // Download the file in chunks
-      const chunks: Uint8Array[] = [];
-      let offset = 0;
-      const chunkSize = 1024 * 1024; // 1MB chunks
+      // Get download settings
+      const settings = settingsService.getSettings();
+      const chunkSize = settings.chunkSize;
+      const parallelDownloads = settings.speedBoost ? settings.parallelDownloads : 1;
+      
+      console.log(`[MTProto] Download settings: chunkSize=${chunkSize}, parallelDownloads=${parallelDownloads}`);
+      
+      // Calculate all chunk offsets
+      const totalChunks = Math.ceil(document.size / chunkSize);
+      const chunkOffsets: number[] = [];
+      for (let i = 0; i < totalChunks; i++) {
+        chunkOffsets.push(i * chunkSize);
+      }
+      
+      console.log(`[MTProto] Total chunks to download: ${totalChunks}`);
+      
+      // Download chunks (parallel or sequential based on settings)
+      const chunks: { offset: number; data: Uint8Array }[] = [];
       let downloadedBytes = 0;
       
-      while (offset < document.size) {
-        console.log(`[MTProto] Downloading chunk at offset ${offset}...`);
+      if (parallelDownloads > 1) {
+        // Parallel download
+        console.log(`[MTProto] Starting parallel download with ${parallelDownloads} concurrent downloads...`);
         
-        const result = await this.client.call({
-          _: 'upload.getFile',
-          location: inputFileLocation,
-          offset: offset,
-          limit: chunkSize
-        }) as any;
-        
-        if (result.bytes && result.bytes.length > 0) {
-          chunks.push(result.bytes);
-          offset += result.bytes.length;
-          downloadedBytes += result.bytes.length;
-          console.log(`[MTProto] Received chunk: ${result.bytes.length} bytes`);
-          
-          // Calculate and report progress
-          const progress = Math.min(100, (downloadedBytes / document.size) * 100);
-          console.log(`[MTProto] Download progress: ${progress.toFixed(2)}%`);
-          
-          // Call progress callback if provided
-          if (onProgress) {
-            onProgress(progress);
+        const downloadChunk = async (offset: number): Promise<{ offset: number; data: Uint8Array } | null> => {
+          try {
+            if (!this.client) return null;
+            
+            const result = await this.client.call({
+              _: 'upload.getFile',
+              location: inputFileLocation,
+              offset: offset,
+              limit: chunkSize
+            }) as any;
+            
+            if (result.bytes && result.bytes.length > 0) {
+              return { offset, data: result.bytes };
+            }
+            return null;
+          } catch (error) {
+            console.error(`[MTProto] Failed to download chunk at offset ${offset}:`, error);
+            return null;
           }
-        } else {
-          break;
+        };
+        
+        // Process chunks in batches
+        for (let i = 0; i < chunkOffsets.length; i += parallelDownloads) {
+          const batch = chunkOffsets.slice(i, i + parallelDownloads);
+          console.log(`[MTProto] Downloading batch: offsets ${batch.join(', ')}`);
+          
+          const results = await Promise.all(batch.map(offset => downloadChunk(offset)));
+          
+          for (const result of results) {
+            if (result) {
+              chunks.push(result);
+              downloadedBytes += result.data.length;
+              
+              // Calculate and report progress
+              const progress = Math.min(100, (downloadedBytes / document.size) * 100);
+              console.log(`[MTProto] Download progress: ${progress.toFixed(2)}%`);
+              
+              if (onProgress) {
+                onProgress(progress);
+              }
+            }
+          }
+        }
+      } else {
+        // Sequential download
+        console.log('[MTProto] Starting sequential download...');
+        
+        for (const offset of chunkOffsets) {
+          console.log(`[MTProto] Downloading chunk at offset ${offset}...`);
+          
+          const result = await this.client.call({
+            _: 'upload.getFile',
+            location: inputFileLocation,
+            offset: offset,
+            limit: chunkSize
+          }) as any;
+          
+          if (result.bytes && result.bytes.length > 0) {
+            chunks.push({ offset, data: result.bytes });
+            downloadedBytes += result.bytes.length;
+            console.log(`[MTProto] Received chunk: ${result.bytes.length} bytes`);
+            
+            // Calculate and report progress
+            const progress = Math.min(100, (downloadedBytes / document.size) * 100);
+            console.log(`[MTProto] Download progress: ${progress.toFixed(2)}%`);
+            
+            if (onProgress) {
+              onProgress(progress);
+            }
+          } else {
+            break;
+          }
         }
       }
       
       console.log('[MTProto] All chunks downloaded, combining...');
       
+      // Sort chunks by offset to ensure correct order
+      chunks.sort((a, b) => a.offset - b.offset);
+      
       // Combine all chunks into a single buffer
-      const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+      const totalLength = chunks.reduce((sum, chunk) => sum + chunk.data.length, 0);
       const buffer = new Uint8Array(totalLength);
       let position = 0;
       for (const chunk of chunks) {
-        buffer.set(chunk, position);
-        position += chunk.length;
+        buffer.set(chunk.data, position);
+        position += chunk.data.length;
       }
       
       console.log('[MTProto] File downloaded, buffer size:', buffer.length);
