@@ -24,6 +24,8 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
   const [searchQuery, setSearchQuery] = useState('');
   const [showMoveDialog, setShowMoveDialog] = useState(false);
   const [fileToMove, setFileToMove] = useState<FileItem | null>(null);
+  const [showCreateSubfolderDialog, setShowCreateSubfolderDialog] = useState(false);
+  const [subfolderParent, setSubfolderParent] = useState<FileItem | null>(null);
   const { pinnedFolders, pinFolder, unpinFolder, transfers, addTransfer, updateTransfer } = useAppStore();
 
   useEffect(() => { loadChatHistory(); }, [chat.id]);
@@ -202,6 +204,44 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
       setFileToMove(null);
     } catch (error) {
       console.error('[FileManager] Failed to move file:', error);
+    }
+  };
+
+  const handleCreateSubfolder = async (folderName: string) => {
+    if (!subfolderParent || !folderName.trim()) return;
+    
+    try {
+      console.log('[FileManager] Creating subfolder:', folderName, 'in', subfolderParent.name);
+      
+      // Create the full path for the subfolder
+      const parentPath = subfolderParent.path === '/' 
+        ? `/${subfolderParent.name}` 
+        : `${subfolderParent.path}/${subfolderParent.name}`;
+      const subfolderFullPath = `${parentPath}/${folderName.trim()}`;
+      
+      // Create the folder metadata
+      const folder: FileItem = {
+        id: `folder-${Date.now()}`,
+        name: folderName.trim(),
+        path: parentPath,
+        size: 0,
+        type: 'folder',
+        mimeType: 'folder',
+        extension: '',
+        createdAt: Date.now(),
+        modifiedAt: Date.now(),
+      };
+      
+      // Add to files list
+      setFiles([...files, folder]);
+      
+      console.log('[FileManager] Subfolder created successfully');
+      
+      // Close the dialog
+      setShowCreateSubfolderDialog(false);
+      setSubfolderParent(null);
+    } catch (error) {
+      console.error('[FileManager] Failed to create subfolder:', error);
     }
   };
 
@@ -390,20 +430,33 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
           className="bg-surface border border-default rounded-lg shadow-lg p-2 z-50"
         >
           {contextMenu.item.type === 'folder' && (
-            <button
-              onClick={() => { handlePinFolder(contextMenu.item); setContextMenu(null); }}
-              className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-elevated rounded transition-colors flex items-center gap-2"
-            >
-              {pinnedFolders.some(f => f.path === (contextMenu.item.path === '/' ? `/${contextMenu.item.name}` : `${contextMenu.item.path}/${contextMenu.item.name}`)) ? (
-                <>
-                  <PinOff className="w-4 h-4" /> Unpin
-                </>
-              ) : (
-                <>
-                  <Pin className="w-4 h-4" /> Pin to Sidebar
-                </>
-              )}
-            </button>
+            <>
+              <button
+                onClick={() => { handlePinFolder(contextMenu.item); setContextMenu(null); }}
+                className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-elevated rounded transition-colors flex items-center gap-2"
+              >
+                {pinnedFolders.some(f => f.path === (contextMenu.item.path === '/' ? `/${contextMenu.item.name}` : `${contextMenu.item.path}/${contextMenu.item.name}`)) ? (
+                  <>
+                    <PinOff className="w-4 h-4" /> Unpin
+                  </>
+                ) : (
+                  <>
+                    <Pin className="w-4 h-4" /> Pin to Sidebar
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setSubfolderParent(contextMenu.item);
+                  setShowCreateSubfolderDialog(true);
+                  setContextMenu(null);
+                }}
+                className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-elevated rounded transition-colors flex items-center gap-2"
+              >
+                <FolderPlus className="w-4 h-4" />
+                Create Subfolder
+              </button>
+            </>
           )}
           {contextMenu.item.type === 'file' && (
             <>
@@ -530,6 +583,50 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Create Subfolder Dialog */}
+      {showCreateSubfolderDialog && subfolderParent && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={() => { setShowCreateSubfolderDialog(false); setSubfolderParent(null); }}
+        >
+          <div 
+            className="bg-surface border border-default rounded-lg p-6 max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold text-primary mb-4">
+              Create Subfolder in "{subfolderParent.name}"
+            </h3>
+            <input
+              type="text"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              placeholder="Subfolder name"
+              className="input mb-4"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowCreateSubfolderDialog(false); setSubfolderParent(null); setNewFolderName(''); }}
+                className="btn btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (newFolderName.trim()) {
+                    handleCreateSubfolder(newFolderName.trim());
+                    setNewFolderName('');
+                  }
+                }}
+                className="btn btn-primary flex-1"
+              >
+                Create
+              </button>
+            </div>
           </div>
         </div>
       )}
