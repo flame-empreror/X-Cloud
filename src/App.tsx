@@ -4,6 +4,7 @@ import { mtprotoService } from './services/mtproto';
 import LoginScreenMTProto from './components/LoginScreenMTProto';
 import ChannelSelect from './components/ChannelSelect';
 import FileManager from './components/FileManager';
+import PersistentSidebar from './components/PersistentSidebar';
 import { FileItem, TelegramChat } from './types';
 import { Long } from '@mtcute/core';
 
@@ -13,6 +14,7 @@ export default function App() {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('files');
 
   useEffect(() => {
     const init = async () => {
@@ -118,12 +120,41 @@ export default function App() {
   if (!isAuthenticated) return <LoginScreenMTProto onLoginSuccess={handleLoginSuccess} />;
   if (!selectedChat) return <ChannelSelect onChatSelect={handleChatSelect} />;
 
+  const [currentPath, setCurrentPath] = useState('/');
+
+  const handleFolderClick = (path: string) => {
+    setActiveTab('files');
+    setCurrentPath(path);
+  };
+
   return (
-    <FileManager
-      chat={selectedChat}
-      files={files}
-      setFiles={setFiles}
-      onLogout={handleLogout}
-    />
+    <div className="flex h-screen" style={{ background: 'var(--bg-base)' }}>
+      <PersistentSidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onFolderClick={handleFolderClick}
+      />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {activeTab === 'files' && (
+          <FileManager
+            chat={selectedChat}
+            files={files}
+            setFiles={setFiles}
+            onLogout={handleLogout}
+            currentPath={currentPath}
+            setCurrentPath={setCurrentPath}
+          />
+        )}
+        {activeTab === 'settings' && (
+          <div className="flex-1 overflow-auto">
+            {/* Settings component will be added here */}
+            <div className="p-8">
+              <h1 className="text-2xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Settings</h1>
+              <p style={{ color: 'var(--text-secondary)' }}>Settings panel coming soon...</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

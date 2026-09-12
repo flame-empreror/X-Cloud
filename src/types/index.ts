@@ -39,7 +39,7 @@ export interface TransferItem {
   fileName: string;
   type: 'upload' | 'download';
   progress: number;
-  status: 'pending' | 'active' | 'completed' | 'error' | 'paused';
+  status: 'pending' | 'active' | 'completed' | 'error' | 'paused' | 'cancelled';
   speed?: number;
   size: number;
   transferred: number;
@@ -53,6 +53,13 @@ export interface AppSettings {
   chunkSize: number;
   theme: 'dark' | 'light' | 'system';
   autoRefresh: boolean;
+}
+
+export interface PinnedFolder {
+  id: string;
+  name: string;
+  path: string;
+  pinnedAt: number;
 }
 
 export interface AppState {

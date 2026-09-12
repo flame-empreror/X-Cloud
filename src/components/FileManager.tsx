@@ -6,19 +6,21 @@ import { formatFileSize, getFileIconComponent } from '../utils/fileUtils';
 import {
   Upload, Download, Trash2, Folder, Grid, List, LogOut, Settings,
   FolderPlus, MoreVertical, Edit2, X, ChevronRight, Home, HardDrive,
-  Loader2, FileText
+  Loader2, FileText, Pin, PinOff
 } from 'lucide-react';
 import SettingsPanel from './SettingsPanel';
+import { useAppStore } from '../store';
 
 interface FileManagerProps {
   chat: TelegramChat;
   files: FileItem[];
   setFiles: (files: FileItem[]) => void;
   onLogout: () => void;
+  currentPath: string;
+  setCurrentPath: (path: string) => void;
 }
 
-export default function FileManager({ chat, files, setFiles, onLogout }: FileManagerProps) {
-  const [currentPath, setCurrentPath] = useState('/');
+export default function FileManager({ chat, files, setFiles, onLogout, currentPath, setCurrentPath }: FileManagerProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [transfers, setTransfers] = useState<TransferItem[]>([]);
   const [showTransfers, setShowTransfers] = useState(false);
@@ -32,6 +34,7 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
   const [newName, setNewName] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { pinnedFolders, pinFolder, unpinFolder } = useAppStore();
 
   useEffect(() => { loadChatHistory(); }, [chat.id]);
 
@@ -128,9 +131,29 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(url);
       setTransfers(prev => prev.map(t => t.id === transferId ? { ...t, status: 'completed', progress: 100 } : t));
-    } catch (error) {
-      console.error('[FileManager] Download failed:', error);
-      setTransfers(prev => prev.map(t => t.id === transferId ? { ...t, status: 'error', error: 'Download failed' } : t));
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        setTransfers(prev => prev.map(t => t.id === transferId ? { ...t, status: 'cancelled' } : t));
+      } else {
+        console.error('[FileManager] Download failed:', error);
+        setTransfers(prev => prev.map(t => t.id === transferId ? { ...t, status: 'error', error: 'Download failed' } : t));
+      }
+    }
+  };
+
+  const handleCancelTransfer = (transferId: string) => {
+    setTransfers(prev => prev.map(t => 
+      t.id === transferId ? { ...t, status: 'cancelled' } : t
+    ));
+  };
+
+  const handlePinFolder = (folder: FileItem) => {
+    const folderPath = folder.path === '/' ? `/${folder.name}` : `${folder.path}/${folder.name}`;
+    const isPinned = pinnedFolders.some(f => f.path === folderPath);
+    if (isPinned) {
+      unpinFolder(folderPath);
+    } else {
+      pinFolder(folderPath, folder.name);
     }
   };
 
@@ -516,6 +539,22 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
             style={{ position: 'fixed', top: contextMenu.y, left: contextMenu.x, zIndex: 100 }}
             className="context-menu"
           >
+            {contextMenu.item.type === 'folder' && (
+              <button
+                onClick={() => { handlePinFolder(contextMenu.item); setContextMenu(null); }}
+                className="context-menu-item w-full"
+              >
+                {pinnedFolders.some(f => f.path === (contextMenu.item.path === '/' ? `/${contextMenu.item.name}` : `${contextMenu.item.path}/${contextMenu.item.name}`)) ? (
+                  <>
+                    <PinOff className="w-4 h-4" /> Unpin
+                  </>
+                ) : (
+                  <>
+                    <Pin className="w-4 h-4" /> Pin to Sidebar
+                  </>
+                )}
+              </button>
+            )}
             <button
               onClick={() => { setRenameItem(contextMenu.item); setNewName(contextMenu.item.name); setShowRenameDialog(true); setContextMenu(null); }}
               className="context-menu-item w-full"
