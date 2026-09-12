@@ -266,7 +266,8 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
       
       // Delete the message from Telegram
       console.log('[FileManager] Calling deleteMessage...');
-      const deleteSuccess = await mtprotoService.deleteMessage(chat.id, item.telegramMessageId);
+      console.log('[FileManager] Chat inputPeer:', chat.inputPeer);
+      const deleteSuccess = await mtprotoService.deleteMessage(chat.inputPeer || chat.id, item.telegramMessageId);
       console.log('[FileManager] deleteMessage returned:', deleteSuccess);
       
       if (!deleteSuccess) {

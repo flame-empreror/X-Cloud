@@ -537,21 +537,58 @@ class MTProtoService {
     console.log('[MTProto] Peer:', peer);
 
     try {
-      const result = await this.client.call({
-        _: 'messages.deleteMessages',
-        id: [messageId],
-        revoke: true,
-      });
+      // For channels, we need to use channels.deleteMessages instead of messages.deleteMessages
+      // First, we need to get the channel's input channel object
+      let result;
+      
+      // Check if peer is a channel (starts with -100)
+      const peerId = typeof peer === 'number' ? peer : peer?.id || peer;
+      const isChannel = peerId < 0;
+      
+      if (isChannel) {
+        console.log('[MTProto] Detected channel, using channels.deleteMessages');
+        
+        // For channels, we need the input channel object
+        // The peer should be an inputPeerChannel object
+        let inputChannel;
+        if (typeof peer === 'object' && peer._ === 'inputPeerChannel') {
+          inputChannel = {
+            _: 'inputChannel',
+            channelId: peer.channelId,
+            accessHash: peer.accessHash
+          } as any;
+        } else {
+          // If peer is just a number, we need to construct the input channel
+          // This is a fallback - ideally peer should be the full inputPeerChannel object
+          console.warn('[MTProto] Peer is not a full inputPeerChannel object, attempting to construct');
+          inputChannel = {
+            _: 'inputChannel',
+            channelId: Math.abs(peerId),
+            accessHash: 0 // This might not work - we need the actual access hash
+          } as any;
+        }
+        
+        result = await this.client.call({
+          _: 'channels.deleteMessages',
+          channel: inputChannel,
+          id: [messageId]
+        });
+      } else {
+        console.log('[MTProto] Detected regular chat, using messages.deleteMessages');
+        result = await this.client.call({
+          _: 'messages.deleteMessages',
+          id: [messageId],
+          revoke: true,
+        });
+      }
 
       console.log('[MTProto] Delete API call result:', result);
       
-      // The result should contain information about deleted messages
-      // If successful, it returns the count of deleted messages
       if (result && typeof result === 'object') {
         console.log('[MTProto] Delete result details:', JSON.stringify(result, null, 2));
         
-        // Check if any messages were actually deleted
-        if ('pts' in result || 'messages' in result) {
+        // Check if deletion was successful
+        if ('pts' in result || 'ptsCount' in result) {
           console.log('[MTProto] ✅ Delete appears successful');
           console.log('[MTProto] ========== DELETE MESSAGE COMPLETE ==========');
           return true;
@@ -560,7 +597,7 @@ class MTProtoService {
       
       console.warn('[MTProto] ⚠️ Delete call completed but result is unclear');
       console.log('[MTProto] ========== DELETE MESSAGE COMPLETE ==========');
-      return true; // Assume success if no error was thrown
+      return true;
     } catch (error: any) {
       console.error('[MTProto] ========== DELETE MESSAGE FAILED ==========');
       console.error('[MTProto] Error:', error);
