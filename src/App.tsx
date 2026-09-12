@@ -15,6 +15,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('files');
+  const [currentPath, setCurrentPath] = useState('/');
 
   useEffect(() => {
     const init = async () => {
@@ -119,8 +120,6 @@ export default function App() {
 
   if (!isAuthenticated) return <LoginScreenMTProto onLoginSuccess={handleLoginSuccess} />;
   if (!selectedChat) return <ChannelSelect onChatSelect={handleChatSelect} />;
-
-  const [currentPath, setCurrentPath] = useState('/');
 
   const handleFolderClick = (path: string) => {
     setActiveTab('files');
