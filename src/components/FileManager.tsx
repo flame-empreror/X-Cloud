@@ -431,8 +431,14 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
 
       {/* New Folder Dialog */}
       {showNewFolderDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-surface border border-default rounded-lg p-6 max-w-md w-full mx-4">
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={() => { setShowNewFolderDialog(false); setNewFolderName(''); }}
+        >
+          <div 
+            className="bg-surface border border-default rounded-lg p-6 max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-lg font-bold text-primary mb-4">Create New Folder</h3>
             <input
               type="text"
@@ -479,8 +485,16 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
 
       {/* Move Dialog */}
       {showMoveDialog && fileToMove && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-surface border border-default rounded-lg p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto">
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={() => {
+ setShowMoveDialog(false); setFileToMove(null);
+ }}
+        >
+          <div 
+            className="bg-surface border border-default rounded-lg p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-lg font-bold text-primary mb-4">Move "{fileToMove.name}" to...</h3>
             <div className="space-y-2 mb-4">
               {/* Root option */}
