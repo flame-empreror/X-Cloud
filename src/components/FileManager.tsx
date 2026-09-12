@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { mtprotoService } from '../services/mtproto';
 import { FileItem, TransferItem, TelegramChat } from '../types';
 import { formatFileSize, getFileIconComponent } from '../utils/fileUtils';
-import { Upload, Download, Trash2, Folder, Grid, List, LogOut, Settings, FolderPlus } from 'lucide-react';
+import { Upload, Download, Trash2, Folder, Grid, List, LogOut, Settings, FolderPlus, MoreVertical, Edit2, X } from 'lucide-react';
 import SettingsPanel from './SettingsPanel';
 
 interface FileManagerProps {
@@ -21,6 +21,11 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
   const [showSettings, setShowSettings] = useState(false);
   const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [contextMenu, setContextMenu] = useState<{ item: FileItem; x: number; y: number } | null>(null);
+  const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const [renameItem, setRenameItem] = useState<FileItem | null>(null);
+  const [newName, setNewName] = useState('');
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Load chat history on mount
   useEffect(() => {
@@ -243,19 +248,111 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
     }
   };
 
-  const handleDelete = async (file: FileItem) => {
-    if (!file.telegramMessageId) return;
+  const handleDelete = async (item: FileItem) => {
+    if (!item.telegramMessageId) return;
 
-    if (!confirm(`Delete ${file.name}?`)) return;
+    const itemType = item.type === 'folder' ? 'folder' : 'file';
+    if (!confirm(`Delete ${itemType} "${item.name}"?`)) return;
 
     try {
-      await mtprotoService.deleteMessage(chat.id, file.telegramMessageId);
-      setFiles(files.filter(f => f.id !== file.id));
+      await mtprotoService.deleteMessage(chat.id, item.telegramMessageId);
+      setFiles(files.filter(f => f.id !== item.id));
+      setContextMenu(null);
     } catch (error) {
       console.error('[FileManager] Delete failed:', error);
-      alert('Failed to delete file');
+      alert(`Failed to delete ${itemType}`);
     }
   };
+
+  const handleContextMenu = (e: React.MouseEvent, item: FileItem) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ item, x: e.clientX, y: e.clientY });
+  };
+
+  const handleRename = (item: FileItem) => {
+    setRenameItem(item);
+    setNewName(item.name);
+    setShowRenameDialog(true);
+    setContextMenu(null);
+  };
+
+  const handleRenameSubmit = async () => {
+    if (!renameItem || !newName.trim()) {
+      alert('Please enter a name');
+      return;
+    }
+
+    if (newName.trim() === renameItem.name) {
+      setShowRenameDialog(false);
+      setRenameItem(null);
+      setNewName('');
+      return;
+    }
+
+    try {
+      console.log('[FileManager] Renaming:', renameItem.name, 'to', newName);
+      
+      // Create updated metadata
+      const updatedMetadata = {
+        name: newName.trim(),
+        path: renameItem.path,
+        size: renameItem.size,
+        mimeType: renameItem.mimeType,
+        extension: renameItem.extension,
+        createdAt: renameItem.createdAt,
+        isFolder: renameItem.type === 'folder',
+      };
+
+      // Send updated metadata as a new message
+      const caption = `__TCLOUD_V1__${JSON.stringify(updatedMetadata)}`;
+      
+      if (renameItem.type === 'folder') {
+        // For folders, send a text message with updated metadata
+        await mtprotoService.sendMessage(chat.id, caption);
+      } else {
+        // For files, we need to re-upload with new name (Telegram doesn't support renaming files)
+        // For now, we'll just update the local state
+        // In a real implementation, you'd need to download and re-upload with new name
+        alert('File renaming requires re-uploading. For now, only folder renaming is fully supported.');
+        return;
+      }
+
+      // Update local state
+      const updatedFiles = files.map(f => {
+        if (f.id === renameItem.id) {
+          return {
+            ...f,
+            name: newName.trim(),
+            modifiedAt: Date.now(),
+          };
+        }
+        return f;
+      });
+
+      setFiles(updatedFiles);
+      setShowRenameDialog(false);
+      setRenameItem(null);
+      setNewName('');
+    } catch (error) {
+      console.error('[FileManager] Rename failed:', error);
+      alert('Failed to rename');
+    }
+  };
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setContextMenu(null);
+      }
+    };
+
+    if (contextMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [contextMenu]);
 
   const navigateToFolder = (folderName: string) => {
     setCurrentPath(currentPath === '/' ? `/${folderName}` : `${currentPath}/${folderName}`);
@@ -478,8 +575,19 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
               <div
                 key={folder.id}
                 onClick={() => navigateToFolder(folder.name)}
-                className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-4 cursor-pointer transition-all"
+                onContextMenu={(e) => handleContextMenu(e, folder)}
+                className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-4 cursor-pointer transition-all relative group"
               >
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setContextMenu({ item: folder, x: rect.right, y: rect.bottom });
+                  }}
+                  className="absolute top-2 right-2 p-1 bg-white/10 hover:bg-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <MoreVertical className="w-4 h-4 text-white" />
+                </button>
                 <div className="w-12 h-12 mx-auto mb-2 bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-xl flex items-center justify-center">
                   <Folder className="w-6 h-6 text-amber-400" />
                 </div>
@@ -491,28 +599,34 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
               return (
                 <div
                   key={file.id}
-                  className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-4 transition-all group"
+                  onContextMenu={(e) => handleContextMenu(e, file)}
+                  className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-4 transition-all group relative"
                 >
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setContextMenu({ item: file, x: rect.right, y: rect.bottom });
+                    }}
+                    className="absolute top-2 right-2 p-1 bg-white/10 hover:bg-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                  >
+                    <MoreVertical className="w-4 h-4 text-white" />
+                  </button>
                   <div className="w-12 h-12 mx-auto mb-2 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center">
                     <Icon className="w-6 h-6 text-blue-400" />
                   </div>
                   <p className="text-white text-sm text-center truncate mb-1">{file.name}</p>
                   <p className="text-gray-500 text-xs text-center">{formatFileSize(file.size)}</p>
-                  <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => handleDownload(file)}
-                      className="flex-1 px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg text-blue-400 text-xs flex items-center justify-center gap-1"
-                    >
-                      <Download className="w-3 h-3" />
-                      Download
-                    </button>
-                    <button
-                      onClick={() => handleDelete(file)}
-                      className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-red-400 text-xs"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownload(file);
+                    }}
+                    className="w-full mt-2 px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg text-blue-400 text-xs flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Download className="w-3 h-3" />
+                    Download
+                  </button>
                 </div>
               );
             })}
@@ -523,15 +637,26 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
               <div
                 key={folder.id}
                 onClick={() => navigateToFolder(folder.name)}
-                className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-4 cursor-pointer transition-all flex items-center gap-3"
+                onContextMenu={(e) => handleContextMenu(e, folder)}
+                className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-4 cursor-pointer transition-all flex items-center gap-3 group"
               >
                 <div className="w-10 h-10 bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-xl flex items-center justify-center">
                   <Folder className="w-5 h-5 text-amber-400" />
                 </div>
-                <div className="flex-1">
-                  <p className="text-white text-sm">{folder.name}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-sm truncate">{folder.name}</p>
                   <p className="text-gray-500 text-xs">Folder</p>
                 </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setContextMenu({ item: folder, x: rect.left, y: rect.bottom });
+                  }}
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <MoreVertical className="w-4 h-4 text-white" />
+                </button>
               </div>
             ))}
             {regularFiles.map(file => {
@@ -539,6 +664,7 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
               return (
                 <div
                   key={file.id}
+                  onContextMenu={(e) => handleContextMenu(e, file)}
                   className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-4 transition-all flex items-center gap-3 group"
                 >
                   <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center">
@@ -550,17 +676,24 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
                   </div>
                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
-                      onClick={() => handleDownload(file)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownload(file);
+                      }}
                       className="px-3 py-1 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg text-blue-400 text-xs flex items-center gap-1"
                     >
                       <Download className="w-3 h-3" />
                       Download
                     </button>
                     <button
-                      onClick={() => handleDelete(file)}
-                      className="px-3 py-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-red-400 text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setContextMenu({ item: file, x: rect.left, y: rect.bottom });
+                      }}
+                      className="p-2 bg-white/10 hover:bg-white/20 rounded-lg"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <MoreVertical className="w-4 h-4 text-white" />
                     </button>
                   </div>
                 </div>
@@ -611,6 +744,81 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
                 className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl text-white font-semibold transition-all"
               >
                 Create Folder
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          ref={menuRef}
+          style={{
+            position: 'fixed',
+            top: contextMenu.y,
+            left: contextMenu.x,
+            zIndex: 100,
+          }}
+          className="bg-slate-900 border border-white/10 rounded-xl shadow-2xl py-2 min-w-[160px]"
+        >
+          <button
+            onClick={() => handleRename(contextMenu.item)}
+            className="w-full px-4 py-2 text-left text-white hover:bg-white/10 transition-colors flex items-center gap-3"
+          >
+            <Edit2 className="w-4 h-4" />
+            Rename
+          </button>
+          <button
+            onClick={() => handleDelete(contextMenu.item)}
+            className="w-full px-4 py-2 text-left text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-3"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete
+          </button>
+        </div>
+      )}
+
+      {/* Rename Dialog */}
+      {showRenameDialog && renameItem && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold text-white mb-4">
+              Rename {renameItem.type === 'folder' ? 'Folder' : 'File'}
+            </h3>
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Enter new name"
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 mb-4"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleRenameSubmit();
+                } else if (e.key === 'Escape') {
+                  setShowRenameDialog(false);
+                  setRenameItem(null);
+                  setNewName('');
+                }
+              }}
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowRenameDialog(false);
+                  setRenameItem(null);
+                  setNewName('');
+                }}
+                className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRenameSubmit}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl text-white font-semibold transition-all"
+              >
+                Rename
               </button>
             </div>
           </div>
