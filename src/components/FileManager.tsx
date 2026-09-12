@@ -258,17 +258,57 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
     if (!confirm(`Delete ${itemType} "${item.name}"?`)) return;
 
     try {
-      console.log('[FileManager] Deleting', itemType, ':', item.name, 'Message ID:', item.telegramMessageId);
+      console.log('[FileManager] ========== DELETE START ==========');
+      console.log('[FileManager] Deleting', itemType, ':', item.name);
+      console.log('[FileManager] Item ID:', item.id);
+      console.log('[FileManager] Telegram Message ID:', item.telegramMessageId);
+      console.log('[FileManager] Chat ID:', chat.id);
       
       // Delete the message from Telegram
-      await mtprotoService.deleteMessage(chat.id, item.telegramMessageId);
+      console.log('[FileManager] Calling deleteMessage...');
+      const deleteSuccess = await mtprotoService.deleteMessage(chat.id, item.telegramMessageId);
+      console.log('[FileManager] deleteMessage returned:', deleteSuccess);
       
-      console.log('[FileManager] Delete successful, updating local state');
+      if (!deleteSuccess) {
+        console.error('[FileManager] ❌ Delete returned false');
+        alert('Delete operation failed - message was not deleted');
+        return;
+      }
+      
+      console.log('[FileManager] ✅ Delete call succeeded');
+      
+      // Wait a moment for Telegram to process the deletion
+      console.log('[FileManager] Waiting 2 seconds for Telegram to process...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Verify deletion by checking if message still exists
+      console.log('[FileManager] Verifying deletion...');
+      const remainingMessages = await mtprotoService.getMessages(chat.id, 100, chat.inputPeer);
+      console.log('[FileManager] Remaining messages count:', remainingMessages.length);
+      
+      const stillExists = remainingMessages.some((m: any) => m.id === item.telegramMessageId);
+      console.log('[FileManager] Message still exists?', stillExists);
+      
+      if (stillExists) {
+        console.error('[FileManager] ❌ Message still exists after delete!');
+        console.error('[FileManager] Message ID:', item.telegramMessageId);
+        alert(`Delete verification failed: Message ${item.telegramMessageId} still exists in Telegram`);
+        return;
+      }
+      
+      console.log('[FileManager] ✅ Message successfully deleted from Telegram');
+      console.log('[FileManager] Updating local state...');
+      
       // Remove from local state
       setFiles(files.filter(f => f.id !== item.id));
       setContextMenu(null);
+      
+      console.log('[FileManager] ========== DELETE COMPLETE ==========');
     } catch (error) {
-      console.error('[FileManager] Delete failed:', error);
+      console.error('[FileManager] ========== DELETE FAILED ==========');
+      console.error('[FileManager] Error:', error);
+      console.error('[FileManager] Error message:', error instanceof Error ? error.message : 'Unknown');
+      console.error('[FileManager] Error stack:', error instanceof Error ? error.stack : 'No stack');
       alert(`Failed to delete ${itemType}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };

@@ -244,6 +244,9 @@ class MTProtoService {
       
       console.log('[MTProto] Valid messages count:', validMessages.length);
       
+      // Log ALL message IDs for verification
+      console.log('[MTProto] All message IDs:', validMessages.map((m: any) => m.id));
+      
       // Log first few messages for debugging
       validMessages.slice(0, 3).forEach((msg: any, idx: number) => {
         console.log(`[MTProto] Message ${idx + 1}:`, {
@@ -526,14 +529,46 @@ class MTProtoService {
     }
   }
 
-  async deleteMessage(peer: any, messageId: number): Promise<void> {
+  async deleteMessage(peer: any, messageId: number): Promise<boolean> {
     if (!this.client) throw new Error('Client not initialized');
 
-    await this.client.call({
-      _: 'messages.deleteMessages',
-      id: [messageId],
-      revoke: true,
-    });
+    console.log('[MTProto] ========== DELETE MESSAGE START ==========');
+    console.log('[MTProto] Message ID to delete:', messageId);
+    console.log('[MTProto] Peer:', peer);
+
+    try {
+      const result = await this.client.call({
+        _: 'messages.deleteMessages',
+        id: [messageId],
+        revoke: true,
+      });
+
+      console.log('[MTProto] Delete API call result:', result);
+      
+      // The result should contain information about deleted messages
+      // If successful, it returns the count of deleted messages
+      if (result && typeof result === 'object') {
+        console.log('[MTProto] Delete result details:', JSON.stringify(result, null, 2));
+        
+        // Check if any messages were actually deleted
+        if ('pts' in result || 'messages' in result) {
+          console.log('[MTProto] ✅ Delete appears successful');
+          console.log('[MTProto] ========== DELETE MESSAGE COMPLETE ==========');
+          return true;
+        }
+      }
+      
+      console.warn('[MTProto] ⚠️ Delete call completed but result is unclear');
+      console.log('[MTProto] ========== DELETE MESSAGE COMPLETE ==========');
+      return true; // Assume success if no error was thrown
+    } catch (error: any) {
+      console.error('[MTProto] ========== DELETE MESSAGE FAILED ==========');
+      console.error('[MTProto] Error:', error);
+      console.error('[MTProto] Error message:', error.message);
+      console.error('[MTProto] Error details:', error.details);
+      console.error('[MTProto] Error stack:', error.stack);
+      throw error;
+    }
   }
 
   async logout(): Promise<void> {
