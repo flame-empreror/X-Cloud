@@ -230,7 +230,7 @@ export default function PersistentSidebar({ activeTab, onTabChange, onFolderClic
       {/* Speed Boost Indicator */}
       {settings.speedBoost && (
         <div className="px-5 mb-4">
-          <div className="card p-4 flex items-center gap-3" style={{ borderColor: 'rgba(232, 168, 56, 0.2)' }}>
+          <div className="card p-4 flex items-center gap-3" style={{ borderColor: 'var(--border)' }}>
             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-muted)' }}>
               <svg className="w-4 h-4" style={{ color: 'var(--accent)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />

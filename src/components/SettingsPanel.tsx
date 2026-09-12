@@ -75,7 +75,7 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
         </div>
 
         {/* Speed Boost */}
-        <div className="mb-6 card p-4" style={{ borderColor: 'rgba(232, 168, 56, 0.2)' }}>
+        <div className="mb-6 card p-4" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-muted)' }}>
@@ -148,7 +148,7 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
         </div>
 
         {/* Info */}
-        <div className="card p-4 mb-6" style={{ borderColor: 'rgba(56, 189, 248, 0.2)' }}>
+        <div className="card p-4 mb-6" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-start gap-3">
             <Info className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--info)' }} />
             <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>

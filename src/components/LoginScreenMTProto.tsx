@@ -105,7 +105,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               </div>
 
               {error && (
-                <div className="card p-3" style={{ borderColor: 'rgba(248, 113, 113, 0.2)' }}>
+                <div className="card p-3" style={{ borderColor: 'var(--border)' }}>
                   <p className="text-sm" style={{ color: 'var(--error)' }}>{error}</p>
                 </div>
               )}
@@ -132,7 +132,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>Include country code</p>
               </div>
               {error && (
-                <div className="card p-3" style={{ borderColor: 'rgba(248, 113, 113, 0.2)' }}>
+                <div className="card p-3" style={{ borderColor: 'var(--border)' }}>
                   <p className="text-sm" style={{ color: 'var(--error)' }}>{error}</p>
                 </div>
               )}
@@ -158,7 +158,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 <ArrowLeft className="w-4 h-4" /> Back
               </button>
 
-              <div className="card p-4" style={{ borderColor: 'rgba(74, 222, 128, 0.2)' }}>
+              <div className="card p-4" style={{ borderColor: 'var(--border)' }}>
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(74, 222, 128, 0.1)' }}>
                     <svg className="w-4 h-4" style={{ color: 'var(--success)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -186,7 +186,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 />
               </div>
               {error && (
-                <div className="card p-3" style={{ borderColor: 'rgba(248, 113, 113, 0.2)' }}>
+                <div className="card p-3" style={{ borderColor: 'var(--border)' }}>
                   <p className="text-sm" style={{ color: 'var(--error)' }}>{error}</p>
                 </div>
               )}
@@ -231,7 +231,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 )}
               </div>
 
-              <div className="card p-4" style={{ borderColor: 'rgba(56, 189, 248, 0.2)' }}>
+              <div className="card p-4" style={{ borderColor: 'var(--border)' }}>
                 <div className="flex items-start gap-3">
                   <svg className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--info)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

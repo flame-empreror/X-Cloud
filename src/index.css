@@ -286,6 +286,25 @@ html, body, #root {
   transition: width 0.3s var(--ease);
 }
 
+/* ── Consistent color utilities ── */
+.text-accent { color: var(--accent); }
+.bg-accent { background: var(--accent); }
+.bg-accent-muted { background: var(--accent-muted); }
+.text-success { color: var(--success); }
+.text-error { color: var(--error); }
+.text-info { color: var(--info); }
+.text-warning { color: var(--warning); }
+.text-primary { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted { color: var(--text-muted); }
+.bg-base { background: var(--bg-base); }
+.bg-surface { background: var(--bg-surface); }
+.bg-elevated { background: var(--bg-elevated); }
+.bg-hover { background: var(--bg-hover); }
+.bg-active { background: var(--bg-active); }
+.border-default { border-color: var(--border); }
+.border-hover { border-color: var(--border-hover); }
+
 /* ── Context Menu ── */
 .context-menu {
   background: var(--bg-elevated);

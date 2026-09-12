@@ -33,7 +33,7 @@ export default function TransfersPanel() {
 
       {/* Speed Boost Banner */}
       {settings.speedBoost && activeTransfers.length > 0 && (
-        <div className="mx-6 mt-4 card p-4 flex items-center gap-3" style={{ borderColor: 'rgba(232, 168, 56, 0.2)' }}>
+        <div className="mx-6 mt-4 card p-4 flex items-center gap-3" style={{ borderColor: 'var(--border)' }}>
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-muted)' }}>
             <Zap className="w-4 h-4" style={{ color: 'var(--accent)' }} />
           </div>
@@ -67,9 +67,10 @@ export default function TransfersPanel() {
               >
                 <div className="flex items-center gap-3">
                   {/* Type Icon */}
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                    transfer.type === 'upload' ? 'bg-blue-500/10' : 'bg-green-500/10'
-                  }`}>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{
+                    background: transfer.type === 'upload' ? 'var(--accent-muted)' : 'rgba(74, 222, 128, 0.1)',
+                    border: '1px solid var(--border)'
+                  }}>
                     {transfer.type === 'upload'
                       ? <Upload className="w-5 h-5" style={{ color: 'var(--accent-secondary)' }} />
                       : <Download className="w-5 h-5" style={{ color: 'var(--success)' }} />
@@ -126,10 +127,14 @@ export default function TransfersPanel() {
                         initial={{ width: 0 }}
                         animate={{ width: `${transfer.progress}%` }}
                         transition={{ duration: 0.3 }}
-                        className={`progress-bar-fill ${
-                          transfer.status === 'completed' ? 'bg-green-500' :
-                          transfer.type === 'upload' ? 'bg-blue-500' : 'bg-green-500'
-                        }`}
+                        className="progress-bar-fill"
+                        style={{
+                          background: transfer.status === 'completed'
+                            ? 'var(--success)'
+                            : transfer.type === 'upload'
+                              ? 'var(--accent-secondary)'
+                              : 'var(--success)'
+                        }}
                       />
                     </div>
                   </div>

@@ -69,7 +69,7 @@ export default function ChannelSelect({ onChatSelect }: ChannelSelectProps) {
 
           {error && (
             <div className="p-8">
-              <div className="card p-4 mb-4" style={{ borderColor: 'rgba(248, 113, 113, 0.2)' }}>
+              <div className="card p-4 mb-4" style={{ borderColor: 'var(--border)' }}>
                 <p className="text-sm" style={{ color: 'var(--error)' }}>{error}</p>
               </div>
               <button onClick={loadChats} className="btn btn-secondary w-full">Try again</button>
