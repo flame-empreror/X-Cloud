@@ -270,8 +270,13 @@ class MTProtoService {
     return await this.client.sendText(peer, text);
   }
 
-  async sendFile(peer: any, file: File, caption: string, onProgress?: (progress: number) => void): Promise<any> {
+  async sendFile(peer: any, file: File, caption: string, onProgress?: (progress: number) => void, signal?: AbortSignal): Promise<any> {
     if (!this.client) throw new Error('Client not initialized');
+
+    // Check if upload was cancelled before starting
+    if (signal?.aborted) {
+      throw new DOMException('Upload was cancelled', 'AbortError');
+    }
 
     // Track upload progress
     const totalSize = file.size;
@@ -280,6 +285,10 @@ class MTProtoService {
 
     // Simulate progress updates during upload
     const progressInterval = setInterval(() => {
+      if (signal?.aborted) {
+        clearInterval(progressInterval);
+        return;
+      }
       if (onProgress && uploadedSize < totalSize) {
         // Estimate progress based on time elapsed
         const elapsed = Date.now() - startTime;
@@ -295,18 +304,30 @@ class MTProtoService {
       }));
 
       clearInterval(progressInterval);
+      
+      // Check if cancelled during upload
+      if (signal?.aborted) {
+        throw new DOMException('Upload was cancelled', 'AbortError');
+      }
+      
       if (onProgress) {
         onProgress(100);
       }
 
       return result;
-    } catch (error) {
+    } catch (error: any) {
       clearInterval(progressInterval);
+      
+      // Check if it was an abort error
+      if (error.name === 'AbortError' || signal?.aborted) {
+        throw new DOMException('Upload was cancelled', 'AbortError');
+      }
+      
       throw error;
     }
   }
 
-  async downloadMedia(message: any, onProgress?: (progress: number) => void): Promise<Blob> {
+  async downloadMedia(message: any, onProgress?: (progress: number) => void, signal?: AbortSignal): Promise<Blob> {
     if (!this.client) throw new Error('Client not initialized');
 
     console.log('[MTProto] Starting download for message:', message.id);
@@ -419,6 +440,12 @@ class MTProtoService {
         
         const downloadChunk = async (offset: number): Promise<{ offset: number; data: Uint8Array } | null> => {
           try {
+            // Check if download was cancelled
+            if (signal?.aborted) {
+              console.log('[MTProto] Download cancelled');
+              return null;
+            }
+            
             if (!this.client) return null;
             
             const result = await this.client.call({
@@ -432,7 +459,11 @@ class MTProtoService {
               return { offset, data: result.bytes };
             }
             return null;
-          } catch (error) {
+          } catch (error: any) {
+            if (error.name === 'AbortError' || signal?.aborted) {
+              console.log('[MTProto] Download cancelled');
+              return null;
+            }
             console.error(`[MTProto] Failed to download chunk at offset ${offset}:`, error);
             return null;
           }
@@ -440,6 +471,12 @@ class MTProtoService {
         
         // Process chunks in batches
         for (let i = 0; i < chunkOffsets.length; i += parallelDownloads) {
+          // Check if download was cancelled
+          if (signal?.aborted) {
+            console.log('[MTProto] Download cancelled before batch');
+            break;
+          }
+          
           const batch = chunkOffsets.slice(i, i + parallelDownloads);
           console.log(`[MTProto] Downloading batch: offsets ${batch.join(', ')}`);
           
@@ -465,6 +502,12 @@ class MTProtoService {
         console.log('[MTProto] Starting sequential download...');
         
         for (const offset of chunkOffsets) {
+          // Check if download was cancelled
+          if (signal?.aborted) {
+            console.log('[MTProto] Download cancelled');
+            break;
+          }
+          
           console.log(`[MTProto] Downloading chunk at offset ${offset}...`);
           
           const result = await this.client.call({
@@ -493,6 +536,12 @@ class MTProtoService {
       }
       
       console.log('[MTProto] All chunks downloaded, combining...');
+      
+      // Check if download was cancelled
+      if (signal?.aborted) {
+        console.log('[MTProto] Download was cancelled');
+        throw new DOMException('Download was cancelled', 'AbortError');
+      }
       
       // Sort chunks by offset to ensure correct order
       chunks.sort((a, b) => a.offset - b.offset);
@@ -621,6 +670,69 @@ class MTProtoService {
       console.error('[MTProto] Error message:', error.message);
       console.error('[MTProto] Error details:', error.details);
       console.error('[MTProto] Error stack:', error.stack);
+      throw error;
+    }
+  }
+
+  async editMessageCaption(peer: any, messageId: number, caption: string): Promise<void> {
+    if (!this.client) throw new Error('Client not initialized');
+
+    console.log('[MTProto] ========== EDIT MESSAGE CAPTION START ==========');
+    console.log('[MTProto] Message ID:', messageId);
+    console.log('[MTProto] Peer:', peer);
+    console.log('[MTProto] New caption:', caption.substring(0, 100) + '...');
+
+    try {
+      // Check if peer is a channel
+      let isChannel = false;
+      
+      if (typeof peer === 'object' && peer !== null) {
+        if (peer._ === 'inputPeerChannel') {
+          isChannel = true;
+        } else if (peer.id && peer.id < 0) {
+          isChannel = true;
+        }
+      } else if (typeof peer === 'number') {
+        isChannel = peer < 0;
+      }
+      
+      console.log('[MTProto] isChannel:', isChannel);
+      
+      if (isChannel) {
+        console.log('[MTProto] Using channels.editMessage for channel');
+        
+        // For channels, we need the input channel object
+        let inputChannel;
+        if (typeof peer === 'object' && peer._ === 'inputPeerChannel') {
+          inputChannel = {
+            _: 'inputChannel',
+            channelId: peer.channelId,
+            accessHash: peer.accessHash
+          } as any;
+        } else {
+          throw new Error('Cannot edit: Invalid channel peer object');
+        }
+        
+        await this.client.call({
+          _: 'channels.editMessage',
+          peer: inputChannel,
+          id: messageId,
+          message: caption,
+        } as any);
+      } else {
+        console.log('[MTProto] Using messages.editMessage for regular chat');
+        await this.client.call({
+          _: 'messages.editMessage',
+          peer: peer,
+          id: messageId,
+          message: caption,
+        });
+      }
+
+      console.log('[MTProto] ✅ Edit message caption successful');
+      console.log('[MTProto] ========== EDIT MESSAGE CAPTION COMPLETE ==========');
+    } catch (error) {
+      console.error('[MTProto] Error in editMessageCaption:', error);
       throw error;
     }
   }

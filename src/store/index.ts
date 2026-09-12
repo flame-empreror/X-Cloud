@@ -26,6 +26,9 @@ interface AppActions {
   logout: () => void;
   setActiveTab: (tab: string) => void;
   activeTab: string;
+  pinnedFolders: import('../types').PinnedFolder[];
+  pinFolder: (path: string, name: string) => void;
+  unpinFolder: (path: string) => void;
 }
 
 const defaultSettings: AppSettings = {
@@ -52,6 +55,7 @@ export const useAppStore = create<AppState & AppActions>()(
       viewMode: 'grid',
       selectedFiles: [],
       activeTab: 'files',
+      pinnedFolders: [],
 
       setUser: (user) => set({ user }),
       setBotToken: (botToken) => set({ botToken }),
@@ -94,6 +98,15 @@ export const useAppStore = create<AppState & AppActions>()(
       })),
       clearSelection: () => set({ selectedFiles: [] }),
       setActiveTab: (activeTab) => set({ activeTab }),
+      pinFolder: (path, name) => set((state) => ({
+        pinnedFolders: [
+          ...state.pinnedFolders,
+          { id: `pin-${Date.now()}`, name, path, pinnedAt: Date.now() }
+        ]
+      })),
+      unpinFolder: (path) => set((state) => ({
+        pinnedFolders: state.pinnedFolders.filter(f => f.path !== path)
+      })),
       logout: () => {
         StorageService.clearFiles();
         set({
@@ -107,6 +120,7 @@ export const useAppStore = create<AppState & AppActions>()(
           isAuthenticated: false,
           selectedFiles: [],
           activeTab: 'files',
+          pinnedFolders: [],
         });
       },
     }),
