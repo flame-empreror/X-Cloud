@@ -21,6 +21,7 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
   const [contextMenu, setContextMenu] = useState<{ item: FileItem; x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const { pinnedFolders, pinFolder, unpinFolder, transfers, addTransfer, updateTransfer } = useAppStore();
 
   useEffect(() => { loadChatHistory(); }, [chat.id]);
@@ -175,6 +176,18 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
   const regularFiles = currentFiles.filter(f => f.type === 'file');
   const pathParts = currentPath.split('/').filter(Boolean);
 
+  // Search filtering
+  const filteredFolders = searchQuery
+    ? folders.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    : folders;
+  
+  const filteredFiles = searchQuery
+    ? files.filter(f => 
+        f.type === 'file' && 
+        f.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : regularFiles;
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setContextMenu(null);
@@ -208,6 +221,18 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
             <p className="text-sm text-muted mt-1">Manage your cloud files</p>
           </div>
           <div className="flex items-center gap-2">
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search files..."
+                className="pl-10 pr-4 py-2 bg-elevated border border-default rounded-lg text-primary placeholder-gray-500 focus:outline-none focus:border-accent w-64"
+              />
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
             <button onClick={() => fileInputRef.current?.click()} className="btn btn-primary">
               <Upload className="w-4 h-4" /> Upload
             </button>
@@ -241,16 +266,22 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
 
       {/* File Grid */}
       <div className="flex-1 overflow-auto p-6">
-        {folders.length === 0 && regularFiles.length === 0 ? (
+        {filteredFolders.length === 0 && filteredFiles.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center text-muted">
-              <p className="text-lg mb-2">No files yet</p>
-              <p className="text-sm">Upload files or create a folder to get started</p>
+              <p className="text-lg mb-2">
+                {searchQuery ? 'No files found' : 'No files yet'}
+              </p>
+              <p className="text-sm">
+                {searchQuery 
+                  ? 'Try a different search term' 
+                  : 'Upload files or create a folder to get started'}
+              </p>
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {folders.map((folder) => (
+            {filteredFolders.map((folder) => (
               <div
                 key={folder.id}
                 onClick={() => navigateToFolder(folder.name)}
@@ -273,7 +304,7 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
                 </button>
               </div>
             ))}
-            {regularFiles.map((file) => {
+            {filteredFiles.map((file) => {
               const Icon = getFileIconComponent(file.extension || '');
               return (
                 <div
