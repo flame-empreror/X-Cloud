@@ -476,27 +476,24 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
 
   if (isLoadingHistory) {
     return (
-      <div className="h-screen mesh-gradient noise-overlay flex items-center justify-center">
+      <div className="h-screen flex items-center justify-center bg-zinc-950">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="text-center"
         >
-          <div className="relative w-20 h-20 mx-auto mb-6">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl blur-xl opacity-50 animate-pulse-glow" />
-            <div className="relative w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl flex items-center justify-center shadow-2xl glow-blue">
-              <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.75 3.99-1.73 6.65-2.87 7.95-3.44 3.79-1.58 4.57-1.85 5.08-1.86.11 0 .37.03.54.17.14.12.18.28.2.45-.01.06.01.24 0 .38z"/>
-              </svg>
-            </div>
+          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center">
+            <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.75 3.99-1.73 6.65-2.87 7.95-3.44 3.79-1.58 4.57-1.85 5.08-1.86.11 0 .37.03.54.17.14.12.18.28.2.45-.01.06.01.24 0 .38z"/>
+            </svg>
           </div>
-          <h2 className="text-white text-2xl font-bold mb-2 gradient-text">Loading Files</h2>
-          <p className="text-zinc-400 text-sm mb-6">Reading chat history...</p>
+          <h2 className="text-white text-xl font-bold mb-2">Loading Files</h2>
+          <p className="text-zinc-400 text-sm mb-4">Reading chat history...</p>
           <div className="flex justify-center gap-1">
             {[0, 1, 2].map((i) => (
               <motion.div
                 key={i}
-                className="w-2 h-2 bg-blue-500 rounded-full"
+                className="w-1.5 h-1.5 bg-blue-500 rounded-full"
                 animate={{
                   scale: [1, 1.5, 1],
                   opacity: [0.5, 1, 0.5],
@@ -515,66 +512,59 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
   }
 
   return (
-    <div className="h-screen mesh-gradient noise-overlay flex flex-col">
+    <div className="h-screen flex flex-col bg-zinc-950">
       {/* Header */}
-      <div className="glass-strong border-b border-white/[0.06]">
-        <div className="max-w-[1600px] mx-auto px-6 py-4">
+      <div className="bg-zinc-900/80 backdrop-blur-xl border-b border-zinc-800">
+        <div className="max-w-[1600px] mx-auto px-6 py-3">
           <div className="flex items-center justify-between">
             <motion.div 
-              className="flex items-center gap-4"
+              className="flex items-center gap-3"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3 }}
             >
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl blur-lg opacity-50" />
-                <div className="relative w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl glow-blue">
-                  <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.75 3.99-1.73 6.65-2.87 7.95-3.44 3.79-1.58 4.57-1.85 5.08-1.86.11 0 .37.03.54.17.14.12.18.28.2.45-.01.06.01.24 0 .38z"/>
-                  </svg>
-                </div>
+              <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.75 3.99-1.73 6.65-2.87 7.95-3.44 3.79-1.58 4.57-1.85 5.08-1.86.11 0 .37.03.54.17.14.12.18.28.2.45-.01.06.01.24 0 .38z"/>
+                </svg>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white gradient-text">{chat.title}</h1>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                  <p className="text-xs text-zinc-400 font-medium">{currentPath}</p>
+                <h1 className="text-base font-semibold text-white">{chat.title}</h1>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                  <p className="text-xs text-zinc-400">{currentPath}</p>
                 </div>
               </div>
             </motion.div>
 
             <motion.div 
-              className="flex items-center gap-3"
+              className="flex items-center gap-2"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3, delay: 0.1 }}
             >
               <button
                 onClick={() => setShowSettings(true)}
-                className="btn-modern px-4 py-2.5 glass rounded-xl text-zinc-300 hover:text-white text-sm font-medium flex items-center gap-2"
+                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 hover:text-white text-sm font-medium flex items-center gap-1.5 transition-colors"
               >
                 <Settings className="w-4 h-4" />
                 <span className="hidden sm:inline">Settings</span>
               </button>
               <button
                 onClick={() => setShowTransfers(!showTransfers)}
-                className="btn-modern px-4 py-2.5 glass rounded-xl text-zinc-300 hover:text-white text-sm font-medium relative flex items-center gap-2"
+                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 hover:text-white text-sm font-medium relative flex items-center gap-1.5 transition-colors"
               >
                 <Upload className="w-4 h-4" />
                 <span className="hidden sm:inline">Transfers</span>
                 {transfers.filter(t => t.status === 'active').length > 0 && (
-                  <motion.span 
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 rounded-full text-[10px] font-bold flex items-center justify-center text-white glow-blue"
-                  >
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full text-[10px] font-bold flex items-center justify-center text-white">
                     {transfers.filter(t => t.status === 'active').length}
-                  </motion.span>
+                  </span>
                 )}
               </button>
               <button
                 onClick={onLogout}
-                className="btn-modern px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-xl text-red-400 hover:text-red-300 text-sm font-medium flex items-center gap-2"
+                className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-red-400 hover:text-red-300 text-sm font-medium flex items-center gap-1.5 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
                 <span className="hidden sm:inline">Logout</span>
@@ -585,44 +575,31 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
       </div>
 
       {/* Toolbar */}
-      <div className="max-w-[1600px] mx-auto px-6 py-4 w-full">
-        <motion.div 
-          className="flex items-center justify-between gap-4"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.2 }}
-        >
-          <div className="flex items-center gap-3">
+      <div className="max-w-[1600px] mx-auto px-6 py-3 w-full">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
             {currentPath !== '/' && (
-              <motion.button
-                whileHover={{ scale: 1.02, x: -2 }}
-                whileTap={{ scale: 0.98 }}
+              <button
                 onClick={navigateUp}
-                className="btn-modern px-4 py-2.5 glass rounded-xl text-zinc-300 hover:text-white text-sm font-medium flex items-center gap-2"
+                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 hover:text-white text-sm font-medium flex items-center gap-1.5 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
                 Back
-              </motion.button>
+              </button>
             )}
           </div>
 
-          <div className="flex items-center gap-3">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+          <div className="flex items-center gap-2">
+            <button
               onClick={() => setShowNewFolderDialog(true)}
-              className="btn-modern px-4 py-2.5 glass rounded-xl text-zinc-300 hover:text-white text-sm font-medium flex items-center gap-2"
+              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 hover:text-white text-sm font-medium flex items-center gap-1.5 transition-colors"
             >
               <FolderPlus className="w-4 h-4" />
               <span className="hidden sm:inline">New Folder</span>
-            </motion.button>
-            <motion.label
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="btn-modern btn-primary-modern px-5 py-2.5 rounded-xl text-white text-sm font-semibold cursor-pointer flex items-center gap-2"
-            >
+            </button>
+            <label className="px-4 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-lg text-white text-sm font-medium cursor-pointer flex items-center gap-1.5 transition-all">
               <Upload className="w-4 h-4" />
               <span>Upload Files</span>
               <input
@@ -631,114 +608,85 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
                 onChange={handleUpload}
                 className="hidden"
               />
-            </motion.label>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+            </label>
+            <button
               onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-              className="btn-modern px-4 py-2.5 glass rounded-xl text-zinc-300 hover:text-white text-sm font-medium flex items-center gap-2"
+              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 hover:text-white text-sm font-medium flex items-center gap-1.5 transition-colors"
             >
               {viewMode === 'grid' ? <List className="w-4 h-4" /> : <Grid className="w-4 h-4" />}
               <span className="hidden sm:inline">{viewMode === 'grid' ? 'List' : 'Grid'}</span>
-            </motion.button>
+            </button>
           </div>
-        </motion.div>
+        </div>
       </div>
 
       {/* Transfers Panel */}
-      <AnimatePresence>
-        {showTransfers && (
-          <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className="max-w-[1600px] mx-auto px-6 pb-4 w-full"
-          >
-            <div className="glass-strong rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white font-semibold text-lg flex items-center gap-2">
-                  <Upload className="w-5 h-5 text-blue-400" />
-                  Active Transfers
-                </h3>
-                <span className="badge-modern badge-blue">
-                  {transfers.filter(t => t.status === 'active').length} active
-                </span>
-              </div>
-              {transfers.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 mx-auto mb-3 bg-white/[0.03] rounded-2xl flex items-center justify-center">
-                    <Upload className="w-8 h-8 text-zinc-600" />
-                  </div>
-                  <p className="text-zinc-500 text-sm">No active transfers</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {transfers.slice(0, 5).map((transfer, i) => (
-                    <motion.div 
-                      key={transfer.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.05 }}
-                      className="glass-subtle rounded-xl p-4"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-white text-sm font-medium truncate flex-1 mr-4">{transfer.fileName}</span>
-                        <span className={`badge-modern ${
-                          transfer.status === 'completed' ? 'badge-green' :
-                          transfer.status === 'error' ? 'badge-red' :
-                          'badge-blue'
-                        }`}>
-                          {transfer.status}
-                        </span>
-                      </div>
-                      {transfer.status === 'active' && (
-                        <div className="progress-modern">
-                          <motion.div 
-                            className="progress-modern-fill"
-                            initial={{ width: 0 }}
-                            animate={{ width: `${transfer.progress}%` }}
-                            transition={{ duration: 0.3 }}
-                          />
-                        </div>
-                      )}
-                    </motion.div>
-                  ))}
-                </div>
-              )}
+      {showTransfers && (
+        <div className="max-w-[1600px] mx-auto px-6 pb-3 w-full">
+          <div className="bg-zinc-900/80 backdrop-blur-xl border border-zinc-800 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-white font-medium text-sm flex items-center gap-2">
+                <Upload className="w-4 h-4 text-blue-400" />
+                Active Transfers
+              </h3>
+              <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-400 text-xs font-medium">
+                {transfers.filter(t => t.status === 'active').length} active
+              </span>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            {transfers.length === 0 ? (
+              <div className="text-center py-6">
+                <Upload className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
+                <p className="text-zinc-500 text-xs">No active transfers</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {transfers.slice(0, 5).map((transfer) => (
+                  <div key={transfer.id} className="bg-zinc-800/50 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-white text-xs font-medium truncate flex-1 mr-3">{transfer.fileName}</span>
+                      <span className={`text-xs font-medium ${
+                        transfer.status === 'completed' ? 'text-green-400' :
+                        transfer.status === 'error' ? 'text-red-400' :
+                        'text-blue-400'
+                      }`}>
+                        {transfer.status}
+                      </span>
+                    </div>
+                    {transfer.status === 'active' && (
+                      <div className="w-full bg-zinc-700 rounded-full h-1.5">
+                        <div
+                          className="bg-gradient-to-r from-blue-500 to-purple-600 h-1.5 rounded-full transition-all"
+                          style={{ width: `${transfer.progress}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Files */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-[1600px] mx-auto px-6 pb-8">
+        <div className="max-w-[1600px] mx-auto px-6 pb-6">
           {folders.length === 0 && regularFiles.length === 0 ? (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-center py-20"
-            >
-              <div className="relative w-24 h-24 mx-auto mb-6">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-3xl blur-xl animate-pulse-glow" />
-                <div className="relative w-full h-full bg-white/[0.03] border border-white/[0.06] rounded-3xl flex items-center justify-center">
-                  <svg className="w-12 h-12 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                </div>
-              </div>
-              <h3 className="text-white text-xl font-semibold mb-2">No files yet</h3>
+            <div className="text-center py-16">
+              <svg className="w-16 h-16 text-zinc-700 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <h3 className="text-white text-lg font-medium mb-1">No files yet</h3>
               <p className="text-zinc-500 text-sm">Upload files to get started</p>
-            </motion.div>
+            </div>
         ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
             {folders.map(folder => (
               <div
                 key={folder.id}
                 onClick={() => navigateToFolder(folder.name)}
                 onContextMenu={(e) => handleContextMenu(e, folder)}
-                className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-4 cursor-pointer transition-all relative group"
+                className="bg-zinc-900/50 hover:bg-zinc-800/50 border border-zinc-800 hover:border-zinc-700 rounded-xl p-3 cursor-pointer transition-all relative group"
               >
                 <button
                   onClick={(e) => {
@@ -746,14 +694,14 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
                     const rect = e.currentTarget.getBoundingClientRect();
                     setContextMenu({ item: folder, x: rect.right, y: rect.bottom });
                   }}
-                  className="absolute top-2 right-2 p-1 bg-white/10 hover:bg-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-2 right-2 p-1 bg-zinc-800 hover:bg-zinc-700 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  <MoreVertical className="w-4 h-4 text-white" />
+                  <MoreVertical className="w-3.5 h-3.5 text-zinc-400" />
                 </button>
-                <div className="w-12 h-12 mx-auto mb-2 bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-xl flex items-center justify-center">
-                  <Folder className="w-6 h-6 text-amber-400" />
+                <div className="w-10 h-10 mx-auto mb-2 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center justify-center">
+                  <Folder className="w-5 h-5 text-amber-400" />
                 </div>
-                <p className="text-white text-sm text-center truncate">{folder.name}</p>
+                <p className="text-white text-xs text-center truncate">{folder.name}</p>
               </div>
             ))}
             {regularFiles.map(file => {
@@ -762,7 +710,7 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
                 <div
                   key={file.id}
                   onContextMenu={(e) => handleContextMenu(e, file)}
-                  className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-4 transition-all group relative"
+                  className="bg-zinc-900/50 hover:bg-zinc-800/50 border border-zinc-800 hover:border-zinc-700 rounded-xl p-3 transition-all group relative"
                 >
                   <button
                     onClick={(e) => {
@@ -770,21 +718,21 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
                       const rect = e.currentTarget.getBoundingClientRect();
                       setContextMenu({ item: file, x: rect.right, y: rect.bottom });
                     }}
-                    className="absolute top-2 right-2 p-1 bg-white/10 hover:bg-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                    className="absolute top-2 right-2 p-1 bg-zinc-800 hover:bg-zinc-700 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
                   >
-                    <MoreVertical className="w-4 h-4 text-white" />
+                    <MoreVertical className="w-3.5 h-3.5 text-zinc-400" />
                   </button>
-                  <div className="w-12 h-12 mx-auto mb-2 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center">
-                    <Icon className="w-6 h-6 text-blue-400" />
+                  <div className="w-10 h-10 mx-auto mb-2 bg-zinc-800/50 border border-zinc-700 rounded-lg flex items-center justify-center">
+                    <Icon className="w-5 h-5 text-blue-400" />
                   </div>
-                  <p className="text-white text-sm text-center truncate mb-1">{file.name}</p>
-                  <p className="text-gray-500 text-xs text-center">{formatFileSize(file.size)}</p>
+                  <p className="text-white text-xs text-center truncate mb-1">{file.name}</p>
+                  <p className="text-zinc-500 text-[10px] text-center">{formatFileSize(file.size)}</p>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDownload(file);
                     }}
-                    className="w-full mt-2 px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg text-blue-400 text-xs flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="w-full mt-2 px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg text-blue-400 text-[10px] flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <Download className="w-3 h-3" />
                     Download
@@ -794,20 +742,20 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
             })}
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-1">
             {folders.map(folder => (
               <div
                 key={folder.id}
                 onClick={() => navigateToFolder(folder.name)}
                 onContextMenu={(e) => handleContextMenu(e, folder)}
-                className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-4 cursor-pointer transition-all flex items-center gap-3 group"
+                className="bg-zinc-900/50 hover:bg-zinc-800/50 border border-zinc-800 hover:border-zinc-700 rounded-lg p-3 cursor-pointer transition-all flex items-center gap-3 group"
               >
-                <div className="w-10 h-10 bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-xl flex items-center justify-center">
-                  <Folder className="w-5 h-5 text-amber-400" />
+                <div className="w-9 h-9 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center justify-center">
+                  <Folder className="w-4.5 h-4.5 text-amber-400" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm truncate">{folder.name}</p>
-                  <p className="text-gray-500 text-xs">Folder</p>
+                  <p className="text-zinc-500 text-xs">Folder</p>
                 </div>
                 <button
                   onClick={(e) => {
@@ -815,9 +763,9 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
                     const rect = e.currentTarget.getBoundingClientRect();
                     setContextMenu({ item: folder, x: rect.left, y: rect.bottom });
                   }}
-                  className="p-2 bg-white/10 hover:bg-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="p-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  <MoreVertical className="w-4 h-4 text-white" />
+                  <MoreVertical className="w-3.5 h-3.5 text-zinc-400" />
                 </button>
               </div>
             ))}
@@ -827,14 +775,14 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
                 <div
                   key={file.id}
                   onContextMenu={(e) => handleContextMenu(e, file)}
-                  className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-4 transition-all flex items-center gap-3 group"
+                  className="bg-zinc-900/50 hover:bg-zinc-800/50 border border-zinc-800 hover:border-zinc-700 rounded-lg p-3 transition-all flex items-center gap-3 group"
                 >
-                  <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center">
-                    <Icon className="w-5 h-5 text-blue-400" />
+                  <div className="w-9 h-9 bg-zinc-800/50 border border-zinc-700 rounded-lg flex items-center justify-center">
+                    <Icon className="w-4.5 h-4.5 text-blue-400" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-white text-sm truncate">{file.name}</p>
-                    <p className="text-gray-500 text-xs">{formatFileSize(file.size)}</p>
+                    <p className="text-zinc-500 text-xs">{formatFileSize(file.size)}</p>
                   </div>
                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
@@ -842,7 +790,7 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
                         e.stopPropagation();
                         handleDownload(file);
                       }}
-                      className="px-3 py-1 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg text-blue-400 text-xs flex items-center gap-1"
+                      className="px-2.5 py-1 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg text-blue-400 text-xs flex items-center gap-1"
                     >
                       <Download className="w-3 h-3" />
                       Download
@@ -853,9 +801,9 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
                         const rect = e.currentTarget.getBoundingClientRect();
                         setContextMenu({ item: file, x: rect.left, y: rect.bottom });
                       }}
-                      className="p-2 bg-white/10 hover:bg-white/20 rounded-lg"
+                      className="p-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg"
                     >
-                      <MoreVertical className="w-4 h-4 text-white" />
+                      <MoreVertical className="w-3.5 h-3.5 text-zinc-400" />
                     </button>
                   </div>
                 </div>
@@ -873,15 +821,15 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
 
       {/* New Folder Dialog */}
       {showNewFolderDialog && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 max-w-md w-full mx-4">
-            <h3 className="text-xl font-bold text-white mb-4">Create New Folder</h3>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold text-white mb-3">Create New Folder</h3>
             <input
               type="text"
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
               placeholder="Folder name"
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 mb-4"
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 mb-3 text-sm"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -892,19 +840,19 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
                 }
               }}
             />
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <button
                 onClick={() => {
                   setShowNewFolderDialog(false);
                   setNewFolderName('');
                 }}
-                className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white transition-all"
+                className="flex-1 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-white text-sm transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateFolder}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl text-white font-semibold transition-all"
+                className="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-white text-sm font-medium transition-colors"
               >
                 Create Folder
               </button>
@@ -923,20 +871,20 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
             left: contextMenu.x,
             zIndex: 100,
           }}
-          className="bg-slate-900 border border-white/10 rounded-xl shadow-2xl py-2 min-w-[160px]"
+          className="bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl py-1 min-w-[140px]"
         >
           <button
             onClick={() => handleRename(contextMenu.item)}
-            className="w-full px-4 py-2 text-left text-white hover:bg-white/10 transition-colors flex items-center gap-3"
+            className="w-full px-3 py-1.5 text-left text-white hover:bg-zinc-800 transition-colors flex items-center gap-2 text-sm"
           >
-            <Edit2 className="w-4 h-4" />
+            <Edit2 className="w-3.5 h-3.5" />
             Rename
           </button>
           <button
             onClick={() => handleDelete(contextMenu.item)}
-            className="w-full px-4 py-2 text-left text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-3"
+            className="w-full px-3 py-1.5 text-left text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2 text-sm"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-3.5 h-3.5" />
             Delete
           </button>
         </div>
@@ -944,9 +892,9 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
 
       {/* Rename Dialog */}
       {showRenameDialog && renameItem && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 max-w-md w-full mx-4">
-            <h3 className="text-xl font-bold text-white mb-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold text-white mb-3">
               Rename {renameItem.type === 'folder' ? 'Folder' : 'File'}
             </h3>
             <input
@@ -954,7 +902,7 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Enter new name"
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 mb-4"
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 mb-3 text-sm"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -966,20 +914,20 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
                 }
               }}
             />
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <button
                 onClick={() => {
                   setShowRenameDialog(false);
                   setRenameItem(null);
                   setNewName('');
                 }}
-                className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white transition-all"
+                className="flex-1 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-white text-sm transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleRenameSubmit}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl text-white font-semibold transition-all"
+                className="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-white text-sm font-medium transition-colors"
               >
                 Rename
               </button>
