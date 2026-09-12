@@ -3,7 +3,14 @@ export interface TelegramUser {
   first_name: string;
   last_name?: string;
   username?: string;
-  photo_url?: string;
+}
+
+export interface TelegramChat {
+  id: number;
+  title: string;
+  type: 'group' | 'supergroup' | 'channel';
+  username?: string;
+  inputPeer?: any; // Store the input peer for raw API calls
 }
 
 export interface TelegramChannel {
@@ -11,7 +18,6 @@ export interface TelegramChannel {
   title: string;
   username?: string;
   type: 'channel' | 'supergroup';
-  photo?: string;
 }
 
 export interface FileItem {
@@ -26,7 +32,6 @@ export interface FileItem {
   telegramFileId?: string;
   createdAt: number;
   modifiedAt: number;
-  thumbnail?: string;
 }
 
 export interface TransferItem {
@@ -63,4 +68,5 @@ export interface AppState {
   isAuthenticated: boolean;
   viewMode: 'grid' | 'list';
   selectedFiles: string[];
+  activeTab: string;
 }

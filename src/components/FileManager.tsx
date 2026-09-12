@@ -1,67 +1,102 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Upload, FolderPlus, Grid3X3, List, Search, MoreVertical,
-  Download, Trash2, Home, ChevronRight, Plus, Folder, Eye, RefreshCw
+import { mtprotoService } from '../services/mtproto';
+import { FileItem, TransferItem, TelegramChat } from '../types';
+import { formatFileSize, getFileIconComponent } from '../utils/fileUtils';
+import { 
+  Upload, Download, Trash2, Folder, Grid, List, LogOut, Settings, 
+  FolderPlus, MoreVertical, Edit2, Search, ChevronRight, Home,
+  ArrowLeft, X, HardDrive
 } from 'lucide-react';
-import { useDropzone } from 'react-dropzone';
-import { useAppStore } from '../store';
-import { getFileIcon, getFileIconColor, formatFileSize, formatDate, isImageFile, isVideoFile } from '../utils/fileUtils';
-import { FileItem } from '../types';
-import telegramService from '../services/telegram';
-import { fileSystemService } from '../services/filesystem';
-import { generateId } from '../utils/fileUtils';
+import SettingsPanel from './SettingsPanel';
 
 interface FileManagerProps {
-  onFilePreview: (file: FileItem) => void;
+  chat: TelegramChat;
+  files: FileItem[];
+  setFiles: (files: FileItem[]) => void;
+  onLogout: () => void;
 }
 
-export default function FileManager({ onFilePreview }: FileManagerProps) {
-  const {
-    files, setFiles, currentPath, setCurrentPath, selectedChannel,
-    viewMode, setViewMode, selectedFiles, toggleFileSelection, clearSelection,
-    addTransfer, updateTransfer, addFile, removeFile, settings,
-    setActiveTab,
-  } = useAppStore();
-  
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showNewFolder, setShowNewFolder] = useState(false);
+export default function FileManager({ chat, files, setFiles, onLogout }: FileManagerProps) {
+  const [currentPath, setCurrentPath] = useState('/');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [transfers, setTransfers] = useState<TransferItem[]>([]);
+  const [showTransfers, setShowTransfers] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
-  const [contextMenu, setContextMenu] = useState<{ file: FileItem; x: number; y: number } | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [uploadError, setUploadError] = useState('');
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [contextMenu, setContextMenu] = useState<{ item: FileItem; x: number; y: number } | null>(null);
+  const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const [renameItem, setRenameItem] = useState<FileItem | null>(null);
+  const [newName, setNewName] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  // Get files in current path
-  const currentFiles = files.filter(f => {
-    const matchesPath = f.path === currentPath || f.path === currentPath.replace(/\/$/, '');
-    const matchesSearch = !searchQuery || f.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesPath && matchesSearch;
-  });
+  // Load chat history on mount
+  useEffect(() => {
+    loadChatHistory();
+  }, [chat.id]);
 
-  // Get virtual folders
-  const folders = getVirtualFolders(files, currentPath);
-  const displayFiles = [...folders, ...currentFiles.filter(f => f.type === 'file')];
-
-  // Handle file upload
-  const handleFileUpload = useCallback(async (fileList: FileList | File[]) => {
-    if (!selectedChannel) {
-      setUploadError('No channel selected');
-      return;
+  const loadChatHistory = async () => {
+    setIsLoadingHistory(true);
+    try {
+      const messages = await mtprotoService.getMessages(chat.id, 100, chat.inputPeer);
+      const loadedFiles: FileItem[] = [];
+      
+      for (const msg of messages) {
+        if (!msg) continue;
+        
+        const caption = msg.message || msg.text || '';
+        
+        if (caption.startsWith('__TCLOUD_V1__')) {
+          try {
+            const jsonStr = caption.substring('__TCLOUD_V1__'.length);
+            const metadata = JSON.parse(jsonStr);
+            
+            let fileId: string | undefined;
+            if (msg.media && msg.media._ === 'messageMediaDocument') {
+              fileId = msg.media.document?.id?.toString();
+            }
+            
+            const fileItem: FileItem = {
+              id: msg.id.toString(),
+              name: metadata.name || 'Unknown',
+              path: metadata.path || '/',
+              size: metadata.size || 0,
+              type: metadata.isFolder ? 'folder' : 'file',
+              mimeType: metadata.mimeType || '',
+              extension: metadata.extension || '',
+              telegramMessageId: msg.id,
+              telegramFileId: fileId,
+              createdAt: metadata.createdAt || (msg.date ? msg.date * 1000 : Date.now()),
+              modifiedAt: msg.date ? msg.date * 1000 : Date.now(),
+            };
+            
+            loadedFiles.push(fileItem);
+          } catch (e) {
+            console.error('[FileManager] Failed to parse file meta:', e);
+          }
+        }
+      }
+      
+      setFiles(loadedFiles);
+    } catch (error) {
+      console.error('[FileManager] Failed to load chat history:', error);
+    } finally {
+      setIsLoadingHistory(false);
     }
+  };
 
-    const files = Array.from(fileList);
-    if (files.length === 0) return;
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList) return;
 
-    setUploadError('');
-    
-    // Auto-switch to transfers tab
-    setActiveTab('transfers');
-    
-    for (const file of files) {
-      const transferId = generateId();
-      addTransfer({
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
+      const transferId = `upload-${Date.now()}-${i}`;
+      
+      const transfer: TransferItem = {
         id: transferId,
         fileName: file.name,
         type: 'upload',
@@ -70,149 +105,49 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
         size: file.size,
         transferred: 0,
         path: currentPath,
-      });
+      };
+      
+      setTransfers(prev => [...prev, transfer]);
 
       try {
         const metadata = {
           name: file.name,
           path: currentPath,
           size: file.size,
-          mimeType: file.type || 'application/octet-stream',
+          mimeType: file.type,
           extension: file.name.split('.').pop() || '',
           createdAt: Date.now(),
         };
 
         const caption = `__TCLOUD_V1__${JSON.stringify(metadata)}`;
         
-        const result = await telegramService.sendDocument(
-          selectedChannel.id,
-          file,
-          caption,
-          (progress) => {
-            updateTransfer(transferId, {
-              progress,
-              transferred: Math.round(file.size * progress / 100),
-            });
-          }
-        );
+        await mtprotoService.sendFile(chat.id, file, caption, (progress) => {
+          setTransfers(prev => prev.map(t => 
+            t.id === transferId ? { ...t, progress, transferred: Math.round(file.size * progress / 100) } : t
+          ));
+        });
 
-        const newFile: FileItem = {
-          id: `${result.message_id}`,
-          name: file.name,
-          path: currentPath,
-          size: file.size,
-          type: 'file',
-          mimeType: file.type || 'application/octet-stream',
-          extension: file.name.split('.').pop() || '',
-          telegramMessageId: result.message_id,
-          telegramFileId: result.document?.file_id,
-          createdAt: Date.now(),
-          modifiedAt: Date.now(),
-        };
-
-        addFile(newFile);
-        updateTransfer(transferId, { status: 'completed', progress: 100 });
-      } catch (error: any) {
-        console.error('Upload error:', error);
-        updateTransfer(transferId, { status: 'error', error: error.message || 'Upload failed' });
+        setTransfers(prev => prev.map(t => 
+          t.id === transferId ? { ...t, status: 'completed', progress: 100 } : t
+        ));
+        
+        await loadChatHistory();
+      } catch (error) {
+        console.error('[FileManager] Upload failed:', error);
+        setTransfers(prev => prev.map(t => 
+          t.id === transferId ? { ...t, status: 'error', error: 'Upload failed' } : t
+        ));
       }
     }
-  }, [selectedChannel, currentPath]);
-
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    setIsDragging(false);
-    handleFileUpload(acceptedFiles);
-  }, [handleFileUpload]);
-
-  // IMPORTANT: noClick prevents file picker from opening on any click
-  const { getRootProps, getInputProps, open } = useDropzone({ 
-    onDrop,
-    noClick: true,
-    noKeyboard: true,
-  });
-
-  // Handle file input change (only triggered by the Upload button)
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      handleFileUpload(e.target.files);
-      e.target.value = ''; // Reset input
-    }
-  };
-
-  const navigateToFolder = (folderName: string) => {
-    const newPath = currentPath === '/' ? `/${folderName}` : `${currentPath}/${folderName}`;
-    setCurrentPath(newPath);
-    clearSelection();
-  };
-
-  const navigateUp = () => {
-    if (currentPath === '/') return;
-    const parts = currentPath.split('/').filter(Boolean);
-    parts.pop();
-    setCurrentPath(parts.length === 0 ? '/' : '/' + parts.join('/'));
-    clearSelection();
-  };
-
-  const handleCreateFolder = async () => {
-    if (!newFolderName.trim() || !selectedChannel) return;
     
-    try {
-      const metadata = {
-        name: newFolderName.trim(),
-        path: currentPath,
-        size: 0,
-        mimeType: 'folder',
-        extension: '',
-        createdAt: Date.now(),
-        isFolder: true,
-      };
-
-      const caption = `__TCLOUD_V1__${JSON.stringify(metadata)}`;
-      
-      // Send as a text message (folders are just metadata markers)
-      const result = await telegramService.sendMessage(selectedChannel.id, caption);
-      
-      const folder: FileItem = {
-        id: `folder_${result.message_id}`,
-        name: newFolderName.trim(),
-        path: currentPath,
-        size: 0,
-        type: 'folder',
-        mimeType: 'folder',
-        extension: '',
-        telegramMessageId: result.message_id,
-        createdAt: Date.now(),
-        modifiedAt: Date.now(),
-      };
-      
-      addFile(folder);
-      setNewFolderName('');
-      setShowNewFolder(false);
-    } catch (error: any) {
-      console.error('Failed to create folder:', error);
-      setUploadError(`Failed to create folder: ${error.message}`);
-    }
-  };
-
-  const handleDelete = async (file: FileItem) => {
-    if (!selectedChannel || !file.telegramMessageId) return;
-    
-    try {
-      await telegramService.deleteMessage(selectedChannel.id, file.telegramMessageId);
-      removeFile(file.id);
-    } catch (error) {
-      console.error('Failed to delete:', error);
-    }
-    setContextMenu(null);
+    e.target.value = '';
   };
 
   const handleDownload = async (file: FileItem) => {
-    if (!file.telegramFileId) return;
-    
-    setActiveTab('transfers');
-    
-    const transferId = generateId();
-    addTransfer({
+    if (!file.telegramMessageId) return;
+
+    const transferId = `download-${Date.now()}`;
+    const transfer: TransferItem = {
       id: transferId,
       fileName: file.name,
       type: 'download',
@@ -220,22 +155,25 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
       status: 'active',
       size: file.size,
       transferred: 0,
-      path: currentPath,
-    });
+      path: file.path,
+    };
+
+    setTransfers(prev => [...prev, transfer]);
 
     try {
-      const fileInfo = await telegramService.getFile(file.telegramFileId);
-      const blob = await telegramService.downloadFile(
-        fileInfo.file_path,
-        (progress, speed) => {
-          updateTransfer(transferId, {
-            progress,
-            speed,
-            transferred: Math.round(file.size * progress / 100),
-          });
-        }
-      );
+      const messages = await mtprotoService.getMessages(chat.id, 100, chat.inputPeer);
+      const message = messages.find((m: any) => m.id === file.telegramMessageId);
+      
+      if (!message || !message.media) {
+        throw new Error('File not found');
+      }
 
+      const blob = await mtprotoService.downloadMedia(message, (progress) => {
+        setTransfers(prev => prev.map(t => 
+          t.id === transferId ? { ...t, progress, transferred: Math.round(file.size * progress / 100) } : t
+        ));
+      });
+      
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -245,549 +183,675 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      updateTransfer(transferId, { status: 'completed', progress: 100 });
-    } catch (error: any) {
-      updateTransfer(transferId, { status: 'error', error: error.message });
+      setTransfers(prev => prev.map(t => 
+        t.id === transferId ? { ...t, status: 'completed', progress: 100 } : t
+      ));
+    } catch (error) {
+      console.error('[FileManager] Download failed:', error);
+      setTransfers(prev => prev.map(t => 
+        t.id === transferId ? { ...t, status: 'error', error: 'Download failed' } : t
+      ));
     }
   };
 
-  const handleRefresh = async () => {
-    if (!selectedChannel || isRefreshing) return;
-    
-    setIsRefreshing(true);
-    setUploadError('');
-    
-    console.log('[FileManager] Refreshing file list...');
-    
+  const handleDelete = async (item: FileItem) => {
+    if (!item.telegramMessageId) return;
+    if (!confirm(`Delete ${item.type === 'folder' ? 'folder' : 'file'} "${item.name}"?`)) return;
+
     try {
-      // Try to get new updates from Telegram
-      const messages = await telegramService.scanGroupMessages(selectedChannel.id);
-      const parsedFiles: FileItem[] = [];
-      
-      for (const message of messages) {
-        const fileItem = fileSystemService.parseMessage(message);
-        if (fileItem) {
-          parsedFiles.push(fileItem);
-        }
-      }
-      
-      if (parsedFiles.length > 0) {
-        // Merge with existing files
-        const existingIds = new Set(files.map(f => f.id));
-        const newFiles = parsedFiles.filter(f => !existingIds.has(f.id));
-        
-        if (newFiles.length > 0) {
-          const allFiles = [...files, ...newFiles];
-          const fileTree = fileSystemService.buildFileTree(allFiles);
-          console.log('[FileManager] Added', newFiles.length, 'new files from Telegram');
-          setFiles(fileTree);
-        }
-      }
-      
-      console.log('[FileManager] Refresh complete:', files.length, 'files/folders');
-    } catch (error: any) {
-      console.error('[FileManager] Refresh failed:', error);
-      setUploadError('Failed to refresh: ' + error.message);
-    } finally {
-      setIsRefreshing(false);
+      await mtprotoService.deleteMessage(chat.id, item.telegramMessageId);
+      setFiles(files.filter(f => f.id !== item.id));
+      setContextMenu(null);
+    } catch (error) {
+      console.error('[FileManager] Delete failed:', error);
+      alert('Failed to delete');
     }
   };
 
-  const breadcrumbs = currentPath === '/' ? ['Home'] : ['Home', ...currentPath.split('/').filter(Boolean)];
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) return;
+
+    try {
+      const folderMetadata = {
+        name: newFolderName.trim(),
+        path: currentPath,
+        size: 0,
+        mimeType: 'folder',
+        extension: '',
+        createdAt: Date.now(),
+        isFolder: true,
+      };
+
+      const caption = `__TCLOUD_V1__${JSON.stringify(folderMetadata)}`;
+      await mtprotoService.sendMessage(chat.id, caption);
+
+      const newFolder: FileItem = {
+        id: `folder_${Date.now()}`,
+        name: newFolderName.trim(),
+        path: currentPath,
+        size: 0,
+        type: 'folder',
+        mimeType: 'folder',
+        extension: '',
+        createdAt: Date.now(),
+        modifiedAt: Date.now(),
+      };
+
+      setFiles([...files, newFolder]);
+      setShowNewFolderDialog(false);
+      setNewFolderName('');
+    } catch (error) {
+      console.error('[FileManager] Failed to create folder:', error);
+      alert('Failed to create folder');
+    }
+  };
+
+  const navigateToFolder = (folderName: string) => {
+    setCurrentPath(currentPath === '/' ? `/${folderName}` : `${currentPath}/${folderName}`);
+  };
+
+  const navigateUp = () => {
+    if (currentPath === '/') return;
+    const parts = currentPath.split('/').filter(Boolean);
+    parts.pop();
+    setCurrentPath(parts.length === 0 ? '/' : '/' + parts.join('/'));
+  };
+
+  // Filter files based on current path and search
+  const currentFiles = files.filter(f => {
+    const inCurrentPath = f.path === currentPath;
+    const matchesSearch = !searchQuery || f.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return inCurrentPath && matchesSearch;
+  });
+
+  const folders = currentFiles.filter(f => f.type === 'folder');
+  const regularFiles = currentFiles.filter(f => f.type === 'file');
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setContextMenu(null);
+      }
+    };
+
+    if (contextMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [contextMenu]);
+
+  if (isLoadingHistory) {
+    return (
+      <div className="h-screen flex items-center justify-center" style={{ background: 'var(--bg-base)' }}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <div className="w-12 h-12 mx-auto mb-4 rounded-xl flex items-center justify-center" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}>
+            <HardDrive className="w-6 h-6" style={{ color: 'var(--accent-blue)' }} />
+          </div>
+          <h2 className="text-lg font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Loading Files</h2>
+          <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Reading chat history...</p>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex-1 flex flex-col h-full relative">
-      {/* Hidden file input - ONLY triggered by the Upload button */}
-      <input 
-        ref={fileInputRef}
-        type="file" 
-        multiple 
-        onChange={handleFileInputChange}
-        className="hidden"
-      />
-      
-      {/* Drag overlay */}
-      <AnimatePresence>
-        {isDragging && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 bg-gradient-to-br from-blue-600/30 to-purple-600/30 backdrop-blur-lg flex items-center justify-center border-2 border-dashed border-blue-400 rounded-2xl m-4"
+    <div className="h-screen flex flex-col" style={{ background: 'var(--bg-base)' }}>
+      {/* Header */}
+      <header className="glass-elevated border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+        <div className="max-w-[1800px] mx-auto px-6 h-16 flex items-center justify-between">
+          <motion.div 
+            className="flex items-center gap-4"
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3 }}
           >
-            <div className="text-center">
-              <motion.div
-                animate={{ y: [0, -10, 0] }}
-                transition={{ repeat: Infinity, duration: 1.5 }}
-              >
-                <Upload className="w-16 h-16 text-blue-400 mx-auto mb-4" />
-              </motion.div>
-              <p className="text-white font-bold text-xl">Drop files to upload</p>
-              <p className="text-blue-300 text-sm mt-1">Files will be uploaded to {currentPath}</p>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center animate-glow" style={{ background: 'var(--gradient-primary)' }}>
+              <HardDrive className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{chat.title}</h1>
+              <div className="flex items-center gap-2 mt-0.5">
+                <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--accent-green)' }} />
+                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{currentPath}</p>
+              </div>
             </div>
           </motion.div>
-        )}
-      </AnimatePresence>
+
+          <motion.div 
+            className="flex items-center gap-3"
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+          >
+            <button
+              onClick={() => setShowSettings(true)}
+              className="h-9 px-4 rounded-lg text-sm font-medium flex items-center gap-2 hover-lift"
+              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
+            >
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">Settings</span>
+            </button>
+            <button
+              onClick={() => setShowTransfers(!showTransfers)}
+              className="h-9 px-4 rounded-lg text-sm font-medium relative flex items-center gap-2 hover-lift"
+              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
+            >
+              <Upload className="w-4 h-4" />
+              <span className="hidden sm:inline">Transfers</span>
+              {transfers.filter(t => t.status === 'active').length > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center text-white" style={{ background: 'var(--accent-blue)' }}>
+                  {transfers.filter(t => t.status === 'active').length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={onLogout}
+              className="h-9 px-4 rounded-lg text-sm font-medium flex items-center gap-2 hover-lift"
+              style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: 'var(--accent-red)' }}
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
+          </motion.div>
+        </div>
+      </header>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-white/10 bg-white/[0.02]">
-        {/* Breadcrumbs */}
-        <div className="flex items-center gap-1 flex-1 min-w-0">
-          {currentPath !== '/' && (
-            <button
-              onClick={navigateUp}
-              className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all"
-            >
-              <Home className="w-4 h-4" />
-            </button>
-          )}
-          {breadcrumbs.map((crumb, i) => (
-            <div key={i} className="flex items-center gap-1">
-              {i > 0 && <ChevronRight className="w-3 h-3 text-gray-600" />}
-              <button
-                onClick={() => i === 0 ? setCurrentPath('/') : setCurrentPath('/' + breadcrumbs.slice(1, i + 1).join('/'))}
-                className="text-sm text-gray-400 hover:text-white transition-colors px-2 py-1 rounded-lg hover:bg-white/5"
+      <div className="border-b" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}>
+        <div className="max-w-[1800px] mx-auto px-6 h-14 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            {currentPath !== '/' && (
+              <motion.button
+                whileHover={{ x: -2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={navigateUp}
+                className="h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5 hover-lift"
+                style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
               >
-                {crumb}
-              </button>
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Back
+              </motion.button>
+            )}
+            
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              <Home className="w-3.5 h-3.5" />
+              <ChevronRight className="w-3 h-3" />
+              <span>{currentPath}</span>
             </div>
-          ))}
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-2">
-          <div className="relative hidden sm:block">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search..."
-              className="pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 w-44 transition-all"
-            />
           </div>
 
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowNewFolder(true)}
-            className="p-2.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all"
-            title="New Folder"
-          >
-            <FolderPlus className="w-5 h-5" />
-          </motion.button>
+          <div className="flex items-center gap-3">
+            {/* Search */}
+            <div className="relative hidden md:block">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-tertiary)' }} />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search files..."
+                className="h-8 pl-9 pr-4 rounded-lg text-xs focus-ring"
+                style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+              />
+            </div>
 
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-            className="p-2.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all"
-          >
-            {viewMode === 'grid' ? <List className="w-5 h-5" /> : <Grid3X3 className="w-5 h-5" />}
-          </motion.button>
-
-          {/* Refresh Button */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="p-2.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all disabled:opacity-50"
-            title="Refresh from group"
-          >
-            <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </motion.button>
-
-          {/* Upload Button - ONLY this opens the file picker */}
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-5 py-2.5 btn-primary text-white text-sm font-bold rounded-xl"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Upload</span>
-          </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowNewFolderDialog(true)}
+              className="h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5 hover-lift"
+              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
+            >
+              <FolderPlus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">New Folder</span>
+            </motion.button>
+            
+            <motion.label
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="h-8 px-4 rounded-lg text-xs font-medium cursor-pointer flex items-center gap-1.5 hover-lift"
+              style={{ background: 'var(--gradient-primary)', color: 'white' }}
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>Upload</span>
+              <input
+                type="file"
+                multiple
+                onChange={handleUpload}
+                className="hidden"
+              />
+            </motion.label>
+            
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+              className="h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5 hover-lift"
+              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
+            >
+              {viewMode === 'grid' ? <List className="w-3.5 h-3.5" /> : <Grid className="w-3.5 h-3.5" />}
+            </motion.button>
+          </div>
         </div>
       </div>
 
-      {/* New Folder Input */}
+      {/* Transfers Panel */}
       <AnimatePresence>
-        {showNewFolder && (
+        {showTransfers && transfers.length > 0 && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden border-b border-white/10"
+            className="border-b overflow-hidden"
+            style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
           >
-            <div className="flex items-center gap-2 px-6 py-3">
-              <FolderPlus className="w-5 h-5 text-blue-400" />
-              <input
-                autoFocus
-                type="text"
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleCreateFolder();
-                  if (e.key === 'Escape') setShowNewFolder(false);
-                }}
-                placeholder="Folder name..."
-                className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-              />
-              <button onClick={handleCreateFolder} className="px-5 py-2.5 btn-primary text-white text-sm rounded-xl font-bold">
-                Create
-              </button>
-              <button onClick={() => setShowNewFolder(false)} className="px-5 py-2.5 text-gray-400 text-sm hover:text-white transition-colors">
-                Cancel
-              </button>
+            <div className="max-w-[1800px] mx-auto px-6 py-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                  <Upload className="w-3.5 h-3.5" style={{ color: 'var(--accent-blue)' }} />
+                  Active Transfers
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium" style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', color: 'var(--accent-blue)' }}>
+                  {transfers.filter(t => t.status === 'active').length} active
+                </span>
+              </div>
+              <div className="space-y-2">
+                {transfers.slice(0, 3).map((transfer) => (
+                  <div key={transfer.id} className="rounded-lg p-3" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium truncate flex-1 mr-3" style={{ color: 'var(--text-primary)' }}>{transfer.fileName}</span>
+                      <span className="text-[10px] font-medium" style={{ 
+                        color: transfer.status === 'completed' ? 'var(--accent-green)' :
+                               transfer.status === 'error' ? 'var(--accent-red)' :
+                               'var(--accent-blue)'
+                      }}>
+                        {transfer.status}
+                      </span>
+                    </div>
+                    {transfer.status === 'active' && (
+                      <div className="w-full rounded-full h-1" style={{ background: 'var(--bg-accent)' }}>
+                        <motion.div
+                          className="h-1 rounded-full"
+                          style={{ background: 'var(--gradient-primary)' }}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${transfer.progress}%` }}
+                          transition={{ duration: 0.3 }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Error message */}
-      <AnimatePresence>
-        {uploadError && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="mx-6 mt-3 card-danger rounded-xl px-4 py-3"
-          >
-            <p className="text-red-300 text-sm">{uploadError}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* File Area */}
-      <div 
-        className="flex-1 overflow-y-auto p-6"
-        onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-        onDragLeave={(e) => { 
-          e.preventDefault();
-          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-            setIsDragging(false);
-          }
-        }}
-        onDrop={(e) => { e.preventDefault(); setIsDragging(false); }}
-      >
-        {displayFiles.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center h-full text-center"
-          >
-            <div className="relative mb-6">
-              <div className="w-28 h-28 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-3xl flex items-center justify-center border border-white/10">
-                <Upload className="w-12 h-12 text-blue-400" />
+      {/* Files */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-[1800px] mx-auto px-6 py-6">
+          {folders.length === 0 && regularFiles.length === 0 ? (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center py-24"
+            >
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}>
+                <Folder className="w-8 h-8" style={{ color: 'var(--text-muted)' }} />
               </div>
-              <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-xl">
-                <Plus className="w-5 h-5 text-white" />
-              </div>
+              <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>No files yet</h3>
+              <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Upload files to get started</p>
+            </motion.div>
+          ) : viewMode === 'grid' ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              {folders.map((folder, index) => (
+                <motion.div
+                  key={folder.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  whileHover={{ y: -4 }}
+                  onClick={() => navigateToFolder(folder.name)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setContextMenu({ item: folder, x: e.clientX, y: e.clientY });
+                  }}
+                  className="group relative rounded-xl p-4 cursor-pointer hover-lift"
+                  style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
+                >
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setContextMenu({ item: folder, x: e.clientX, y: e.clientY });
+                    }}
+                    className="absolute top-2 right-2 p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)' }}
+                  >
+                    <MoreVertical className="w-3 h-3" style={{ color: 'var(--text-tertiary)' }} />
+                  </button>
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-lg flex items-center justify-center" style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                    <Folder className="w-6 h-6" style={{ color: 'var(--accent-amber)' }} />
+                  </div>
+                  <p className="text-xs text-center truncate font-medium" style={{ color: 'var(--text-primary)' }}>{folder.name}</p>
+                </motion.div>
+              ))}
+              {regularFiles.map((file, index) => {
+                const Icon = getFileIconComponent(file.extension || '');
+                return (
+                  <motion.div
+                    key={file.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: (folders.length + index) * 0.05 }}
+                    whileHover={{ y: -4 }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setContextMenu({ item: file, x: e.clientX, y: e.clientY });
+                    }}
+                    className="group relative rounded-xl p-4 hover-lift"
+                    style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
+                  >
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setContextMenu({ item: file, x: e.clientX, y: e.clientY });
+                      }}
+                      className="absolute top-2 right-2 p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)' }}
+                    >
+                      <MoreVertical className="w-3 h-3" style={{ color: 'var(--text-tertiary)' }} />
+                    </button>
+              <div className="w-12 h-12 mx-auto mb-3 rounded-lg flex items-center justify-center" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)' }}>
+                <Icon className="w-6 h-6 text-blue-500" />
+              </div>                    <p className="text-xs text-center truncate mb-1 font-medium" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
+                    <p className="text-[10px] text-center" style={{ color: 'var(--text-tertiary)' }}>{formatFileSize(file.size)}</p>
+                    <motion.button
+                      initial={{ opacity: 0, y: 5 }}
+                      whileHover={{ scale: 1.05 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownload(file);
+                      }}
+                      className="w-full mt-3 py-1.5 rounded-md text-[10px] font-medium flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', color: 'var(--accent-blue)' }}
+                    >
+                      <Download className="w-3 h-3" />
+                      Download
+                    </motion.button>
+                  </motion.div>
+                );
+              })}
             </div>
-            <h3 className="text-white font-bold text-xl mb-2">
-              {searchQuery ? 'No results found' : 'Start uploading files'}
-            </h3>
-            <p className="text-gray-400 text-sm max-w-xs mb-6">
-              {searchQuery ? 'Try a different search term' : 'Drag & drop files here or click the Upload button'}
-            </p>
-            {!searchQuery && (
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => fileInputRef.current?.click()}
-                className="px-8 py-3.5 btn-primary text-white rounded-xl font-bold flex items-center gap-2"
-              >
-                <Upload className="w-5 h-5" /> Upload Files
-              </motion.button>
-            )}
-          </motion.div>
-        ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            {displayFiles.map((file, i) => (
-              <FileGridItem
-                key={file.id}
-                file={file}
-                index={i}
-                isSelected={selectedFiles.includes(file.id)}
-                onSelect={() => toggleFileSelection(file.id)}
-                onOpen={() => file.type === 'folder' ? navigateToFolder(file.name) : onFilePreview(file)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  setContextMenu({ file, x: e.clientX, y: e.clientY });
-                }}
-                onDownload={() => handleDownload(file)}
-                onDelete={() => handleDelete(file)}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-1">
-            <div className="flex items-center gap-3 px-4 py-2 text-xs text-gray-500 font-semibold uppercase tracking-wider">
-              <span className="w-10" />
-              <span className="flex-1">Name</span>
-              <span className="hidden sm:block w-20">Size</span>
-              <span className="hidden md:block w-32">Modified</span>
-              <span className="w-24" />
+          ) : (
+            <div className="space-y-1">
+              {folders.map((folder, index) => (
+                <motion.div
+                  key={folder.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.03 }}
+                  onClick={() => navigateToFolder(folder.name)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setContextMenu({ item: folder, x: e.clientX, y: e.clientY });
+                  }}
+                  className="group rounded-lg p-3 cursor-pointer flex items-center gap-3 hover-lift"
+                  style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
+                >
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                    <Folder className="w-4 h-4" style={{ color: 'var(--accent-amber)' }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs truncate font-medium" style={{ color: 'var(--text-primary)' }}>{folder.name}</p>
+                    <p className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>Folder</p>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setContextMenu({ item: folder, x: e.clientX, y: e.clientY });
+                    }}
+                    className="p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)' }}
+                  >
+                    <MoreVertical className="w-3 h-3" style={{ color: 'var(--text-tertiary)' }} />
+                  </button>
+                </motion.div>
+              ))}
+              {regularFiles.map((file, index) => {
+                const Icon = getFileIconComponent(file.extension || '');
+                return (
+                  <motion.div
+                    key={file.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: (folders.length + index) * 0.03 }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setContextMenu({ item: file, x: e.clientX, y: e.clientY });
+                    }}
+                    className="group rounded-lg p-3 flex items-center gap-3 hover-lift"
+                    style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
+                  >
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)' }}>
+                      <Icon className="w-4 h-4 text-blue-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs truncate font-medium" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
+                      <p className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>{formatFileSize(file.size)}</p>
+                    </div>
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownload(file);
+                        }}
+                        className="px-2.5 py-1 rounded-md text-[10px] font-medium flex items-center gap-1"
+                        style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', color: 'var(--accent-blue)' }}
+                      >
+                        <Download className="w-3 h-3" />
+                        Download
+                      </motion.button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setContextMenu({ item: file, x: e.clientX, y: e.clientY });
+                        }}
+                        className="p-1.5 rounded-md"
+                        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)' }}
+                      >
+                        <MoreVertical className="w-3 h-3" style={{ color: 'var(--text-tertiary)' }} />
+                      </button>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
-            {displayFiles.map((file, i) => (
-              <FileListItem
-                key={file.id}
-                file={file}
-                index={i}
-                isSelected={selectedFiles.includes(file.id)}
-                onSelect={() => toggleFileSelection(file.id)}
-                onOpen={() => file.type === 'folder' ? navigateToFolder(file.name) : onFilePreview(file)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  setContextMenu({ file, x: e.clientX, y: e.clientY });
-                }}
-                onDownload={() => handleDownload(file)}
-                onDelete={() => handleDelete(file)}
-              />
-            ))}
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Context Menu */}
       <AnimatePresence>
         {contextMenu && (
-          <>
-            <div className="fixed inset-0 z-50" onClick={() => setContextMenu(null)} />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: -5 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: -5 }}
-              style={{ top: contextMenu.y, left: contextMenu.x }}
-              className="fixed z-50 glass rounded-2xl shadow-2xl py-2 min-w-[180px] overflow-hidden"
+          <motion.div
+            ref={menuRef}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            style={{
+              position: 'fixed',
+              top: contextMenu.y,
+              left: contextMenu.x,
+              zIndex: 100,
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border-default)',
+              boxShadow: 'var(--shadow-lg)',
+            }}
+            className="rounded-lg py-1 min-w-[140px]"
+          >
+            <button
+              onClick={() => {
+                setRenameItem(contextMenu.item);
+                setNewName(contextMenu.item.name);
+                setShowRenameDialog(true);
+                setContextMenu(null);
+              }}
+              className="w-full px-3 py-2 text-left flex items-center gap-2 text-xs font-medium hover:bg-white/5"
+              style={{ color: 'var(--text-primary)' }}
             >
-              {contextMenu.file.type === 'file' && (
+              <Edit2 className="w-3 h-3" />
+              Rename
+            </button>
+            <button
+              onClick={() => handleDelete(contextMenu.item)}
+              className="w-full px-3 py-2 text-left flex items-center gap-2 text-xs font-medium hover:bg-white/5"
+              style={{ color: 'var(--accent-red)' }}
+            >
+              <Trash2 className="w-3 h-3" />
+              Delete
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Settings Panel */}
+      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
+
+      {/* New Folder Dialog */}
+      <AnimatePresence>
+        {showNewFolderDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 flex items-center justify-center z-50"
+            style={{ background: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(8px)' }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="rounded-xl p-5 max-w-sm w-full mx-4"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', boxShadow: 'var(--shadow-lg)' }}
+            >
+              <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Create New Folder</h3>
+              <input
+                type="text"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="Folder name"
+                className="w-full px-3 py-2 rounded-lg text-xs mb-3 focus-ring"
+                style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleCreateFolder();
+                  if (e.key === 'Escape') {
+                    setShowNewFolderDialog(false);
+                    setNewFolderName('');
+                  }
+                }}
+              />
+              <div className="flex gap-2">
                 <button
-                  onClick={() => { handleDownload(contextMenu.file); setContextMenu(null); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-all"
+                  onClick={() => {
+                    setShowNewFolderDialog(false);
+                    setNewFolderName('');
+                  }}
+                  className="flex-1 px-3 py-2 rounded-lg text-xs font-medium hover-lift"
+                  style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
                 >
-                  <Download className="w-4 h-4 text-blue-400" /> Download
+                  Cancel
                 </button>
-              )}
-              {contextMenu.file.type === 'file' && (isImageFile(contextMenu.file.extension || '') || isVideoFile(contextMenu.file.extension || '')) && (
                 <button
-                  onClick={() => { onFilePreview(contextMenu.file); setContextMenu(null); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-all"
+                  onClick={handleCreateFolder}
+                  className="flex-1 px-3 py-2 rounded-lg text-xs font-medium hover-lift"
+                  style={{ background: 'var(--gradient-primary)', color: 'white' }}
                 >
-                  <Eye className="w-4 h-4 text-purple-400" /> Preview
+                  Create Folder
                 </button>
-              )}
-              <div className="my-1 border-t border-white/10" />
-              <button
-                onClick={() => { handleDelete(contextMenu.file); setContextMenu(null); }}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 transition-all"
-              >
-                <Trash2 className="w-4 h-4" /> Delete
-              </button>
+              </div>
             </motion.div>
-          </>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Rename Dialog */}
+      <AnimatePresence>
+        {showRenameDialog && renameItem && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 flex items-center justify-center z-50"
+            style={{ background: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(8px)' }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="rounded-xl p-5 max-w-sm w-full mx-4"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', boxShadow: 'var(--shadow-lg)' }}
+            >
+              <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+                Rename {renameItem.type === 'folder' ? 'Folder' : 'File'}
+              </h3>
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Enter new name"
+                className="w-full px-3 py-2 rounded-lg text-xs mb-3 focus-ring"
+                style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    // Handle rename logic here
+                    setShowRenameDialog(false);
+                    setRenameItem(null);
+                    setNewName('');
+                  }
+                  if (e.key === 'Escape') {
+                    setShowRenameDialog(false);
+                    setRenameItem(null);
+                    setNewName('');
+                  }
+                }}
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setShowRenameDialog(false);
+                    setRenameItem(null);
+                    setNewName('');
+                  }}
+                  className="flex-1 px-3 py-2 rounded-lg text-xs font-medium hover-lift"
+                  style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    // Handle rename logic here
+                    setShowRenameDialog(false);
+                    setRenameItem(null);
+                    setNewName('');
+                  }}
+                  className="flex-1 px-3 py-2 rounded-lg text-xs font-medium hover-lift"
+                  style={{ background: 'var(--gradient-primary)', color: 'white' }}
+                >
+                  Rename
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
-  );
-}
-
-// Helper to get virtual folders from file paths
-function getVirtualFolders(files: FileItem[], currentPath: string): FileItem[] {
-  const normalizedPath = currentPath === '/' ? '' : currentPath;
-  const folderSet = new Set<string>();
-  const folders: FileItem[] = [];
-
-  for (const file of files) {
-    if (file.type === 'folder' && (file.path === currentPath || file.path === normalizedPath)) {
-      if (!folderSet.has(file.name)) {
-        folderSet.add(file.name);
-        folders.push(file);
-      }
-      continue;
-    }
-
-    const filePath = file.path;
-    let relativePath: string;
-    
-    if (currentPath === '/') {
-      relativePath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
-    } else {
-      const prefix = currentPath.endsWith('/') ? currentPath : currentPath + '/';
-      if (!filePath.startsWith(prefix)) continue;
-      relativePath = filePath.slice(prefix.length);
-    }
-
-    const parts = relativePath.split('/').filter(Boolean);
-    if (parts.length > 1 && !folderSet.has(parts[0])) {
-      folderSet.add(parts[0]);
-      folders.push({
-        id: `vfolder_${parts[0]}`,
-        name: parts[0],
-        path: currentPath,
-        size: 0,
-        type: 'folder',
-        mimeType: 'folder',
-        createdAt: file.createdAt,
-        modifiedAt: file.modifiedAt,
-      });
-    }
-  }
-
-  return folders;
-}
-
-// Grid Item Component
-function FileGridItem({ file, index, isSelected, onSelect, onOpen, onContextMenu, onDownload, onDelete }: {
-  file: FileItem;
-  index: number;
-  isSelected: boolean;
-  onSelect: () => void;
-  onOpen: () => void;
-  onContextMenu: (e: React.MouseEvent) => void;
-  onDownload: () => void;
-  onDelete: () => void;
-}) {
-  const Icon = getFileIcon(file.extension || '', file.type);
-  const iconColor = getFileIconColor(file.extension || '');
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index * 0.02, 0.3) }}
-      whileHover={{ y: -3, scale: 1.02 }}
-      onClick={(e) => {
-        if (e.ctrlKey || e.metaKey) {
-          e.preventDefault();
-          onSelect();
-        } else {
-          onOpen();
-        }
-      }}
-      onDoubleClick={onOpen}
-      onContextMenu={onContextMenu}
-      className={`relative group p-4 rounded-2xl cursor-pointer transition-all duration-200 ${
-        isSelected
-          ? 'card-primary shadow-lg'
-          : 'bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 hover:shadow-lg'
-      }`}
-    >
-      <div className="flex flex-col items-center text-center">
-        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110 ${
-          file.type === 'folder' 
-            ? 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30' 
-            : 'bg-white/5 border border-white/10'
-        }`}>
-          <Icon className={`w-7 h-7 ${file.type === 'folder' ? 'text-amber-400' : iconColor}`} />
-        </div>
-        <p className="text-xs text-white font-semibold truncate w-full leading-tight">{file.name}</p>
-        {file.type === 'file' && (
-          <p className="text-[10px] text-gray-400 mt-1">{formatFileSize(file.size)}</p>
-        )}
-        {file.type === 'folder' && (
-          <p className="text-[10px] text-gray-400 mt-1">Folder</p>
-        )}
-      </div>
-
-      {/* Quick actions on hover */}
-      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-        {file.type === 'file' && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onDownload(); }}
-            className="p-1.5 bg-white/10 backdrop-blur-sm rounded-lg hover:bg-blue-500/20 transition-colors border border-white/10"
-          >
-            <Download className="w-3 h-3 text-white" />
-          </button>
-        )}
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="p-1.5 bg-white/10 backdrop-blur-sm rounded-lg hover:bg-red-500/20 transition-colors border border-white/10"
-        >
-          <Trash2 className="w-3 h-3 text-white" />
-        </button>
-      </div>
-    </motion.div>
-  );
-}
-
-// List Item Component
-function FileListItem({ file, index, isSelected, onSelect, onOpen, onContextMenu, onDownload, onDelete }: {
-  file: FileItem;
-  index: number;
-  isSelected: boolean;
-  onSelect: () => void;
-  onOpen: () => void;
-  onContextMenu: (e: React.MouseEvent) => void;
-  onDownload: () => void;
-  onDelete: () => void;
-}) {
-  const Icon = getFileIcon(file.extension || '', file.type);
-  const iconColor = getFileIconColor(file.extension || '');
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: Math.min(index * 0.02, 0.3) }}
-      onClick={(e) => {
-        if (e.ctrlKey || e.metaKey) {
-          e.preventDefault();
-          onSelect();
-        } else {
-          onOpen();
-        }
-      }}
-      onDoubleClick={onOpen}
-      onContextMenu={onContextMenu}
-      className={`group flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all duration-150 ${
-        isSelected
-          ? 'card-primary'
-          : 'hover:bg-white/5 border border-transparent hover:border-white/10'
-      }`}
-    >
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-        file.type === 'folder' 
-          ? 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30' 
-          : 'bg-white/5 border border-white/10'
-      }`}>
-        <Icon className={`w-5 h-5 ${file.type === 'folder' ? 'text-amber-400' : iconColor}`} />
-      </div>
-      
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-white font-semibold truncate">{file.name}</p>
-        <p className="text-[11px] text-gray-400 mt-0.5">
-          {file.type === 'folder' ? 'Folder' : formatFileSize(file.size)}
-        </p>
-      </div>
-
-      <span className="text-xs text-gray-400 hidden sm:block w-20 text-right">{formatFileSize(file.size)}</span>
-      <span className="text-xs text-gray-400 hidden md:block w-32 text-right">{formatDate(file.modifiedAt)}</span>
-
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity w-24 justify-end">
-        {file.type === 'file' && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onDownload(); }}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-          >
-            <Download className="w-4 h-4 text-gray-400 hover:text-blue-400" />
-          </button>
-        )}
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="p-2 hover:bg-red-500/10 rounded-lg transition-colors"
-        >
-          <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-400" />
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onContextMenu(e); }}
-          className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-        >
-          <MoreVertical className="w-4 h-4 text-gray-400" />
-        </button>
-      </div>
-    </motion.div>
   );
 }

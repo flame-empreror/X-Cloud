@@ -1,60 +1,81 @@
-// LocalStorage-based file persistence
-// Since Telegram Bot API doesn't allow reading chat history,
-// we use localStorage to persist the file/folder structure
+// IndexedDB-based storage for MTProto session
+import { MemoryStorage } from '@mtcute/core';
 
-const STORAGE_KEY = 'telecloud_files';
-const LAST_UPDATE_KEY = 'telecloud_last_update';
+class IndexedDBStorage extends MemoryStorage {
+  private dbName = 'telecloud-session';
+  private storeName = 'session';
+  private db: IDBDatabase | null = null;
 
-export class StorageService {
-  static saveFiles(files: any[]): void {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(files));
-      console.log('[Storage] Saved', files.length, 'files to localStorage');
-    } catch (error) {
-      console.error('[Storage] Failed to save files:', error);
-    }
+  async init(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, 1);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        this.db = request.result;
+        resolve();
+      };
+
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          db.createObjectStore(this.storeName);
+        }
+      };
+    });
   }
 
-  static loadFiles(): any[] {
-    try {
-      const data = localStorage.getItem(STORAGE_KEY);
-      if (!data) {
-        console.log('[Storage] No files found in localStorage');
-        return [];
-      }
-      const files = JSON.parse(data);
-      console.log('[Storage] Loaded', files.length, 'files from localStorage');
-      return files;
-    } catch (error) {
-      console.error('[Storage] Failed to load files:', error);
-      return [];
-    }
+  async get(key: string): Promise<any> {
+    if (!this.db) await this.init();
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([this.storeName], 'readonly');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.get(key);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    });
   }
 
-  static clearFiles(): void {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-      console.log('[Storage] Cleared files from localStorage');
-    } catch (error) {
-      console.error('[Storage] Failed to clear files:', error);
-    }
+  async set(key: string, value: any): Promise<void> {
+    if (!this.db) await this.init();
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([this.storeName], 'readwrite');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.put(value, key);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
   }
 
-  static saveLastUpdateId(updateId: number): void {
-    try {
-      localStorage.setItem(LAST_UPDATE_KEY, updateId.toString());
-    } catch (error) {
-      console.error('[Storage] Failed to save last update ID:', error);
-    }
+  async delete(key: string): Promise<void> {
+    if (!this.db) await this.init();
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([this.storeName], 'readwrite');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.delete(key);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
   }
 
-  static getLastUpdateId(): number | null {
-    try {
-      const data = localStorage.getItem(LAST_UPDATE_KEY);
-      return data ? parseInt(data, 10) : null;
-    } catch (error) {
-      console.error('[Storage] Failed to load last update ID:', error);
-      return null;
-    }
+  async saveFiles(files: any[]): Promise<void> {
+    await this.set('files', files);
+  }
+
+  async loadFiles(): Promise<any[]> {
+    const files = await this.get('files');
+    return files || [];
+  }
+
+  async clearFiles(): Promise<void> {
+    await this.delete('files');
   }
 }
+
+export const StorageService = new IndexedDBStorage();

@@ -1,18 +1,17 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Hash, MessageSquare, ArrowLeft } from 'lucide-react';
+import { Users, Hash, MessageSquare } from 'lucide-react';
 import { mtprotoService } from '../services/mtproto';
-import { useAppStore } from '../store';
+import { TelegramChat } from '../types';
 
 interface ChannelSelectProps {
-  onSelect: () => void;
+  onChatSelect: (chat: TelegramChat) => void;
 }
 
-export default function ChannelSelect({ onSelect }: ChannelSelectProps) {
-  const [chats, setChats] = useState<any[]>([]);
+export default function ChannelSelect({ onChatSelect }: ChannelSelectProps) {
+  const [chats, setChats] = useState<TelegramChat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const { setSelectedChannel } = useAppStore();
 
   useEffect(() => {
     loadChats();
@@ -25,29 +24,33 @@ export default function ChannelSelect({ onSelect }: ChannelSelectProps) {
     try {
       const dialogs = await mtprotoService.getDialogs();
       
-      // Filter only groups and channels
-      const groups = dialogs
+      console.log('[ChannelSelect] Received dialogs:', dialogs);
+      
+      // Filter only groups and channels, and map to TelegramChat format
+      const groups: TelegramChat[] = dialogs
         .filter((d: any) => {
-          const peer = d.peer;
-          return peer._ === 'peerChat' || peer._ === 'peerChannel';
+          // Only include groups and channels, not individual chats
+          return d.type === 'group' || d.type === 'channel';
         })
         .map((d: any) => ({
-          id: d.peer.chat_id || d.peer.channel_id,
+          id: d.id,
           title: d.title || 'Unknown',
-          type: d.peer._ === 'peerChannel' ? 'channel' : 'group',
+          type: d.type as 'channel' | 'group',
+          inputPeer: d.peer, // Save the peer info for raw API calls
         }));
 
+      console.log('[ChannelSelect] Filtered groups:', groups);
       setChats(groups);
     } catch (err: any) {
+      console.error('[ChannelSelect] Error loading chats:', err);
       setError(err.message || 'Failed to load chats');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSelect = (chat: any) => {
-    setSelectedChannel(chat);
-    onSelect();
+  const handleSelect = (chat: TelegramChat) => {
+    onChatSelect(chat);
   };
 
   const getChatIcon = (type: string) => {
