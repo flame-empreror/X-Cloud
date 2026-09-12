@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { mtprotoService } from '../services/mtproto';
 import { FileItem, TransferItem, TelegramChat } from '../types';
 import { formatFileSize, getFileIconComponent } from '../utils/fileUtils';
@@ -475,161 +476,261 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
 
   if (isLoadingHistory) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/50 animate-pulse">
-            <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.75 3.99-1.73 6.65-2.87 7.95-3.44 3.79-1.58 4.57-1.85 5.08-1.86.11 0 .37.03.54.17.14.12.18.28.2.45-.01.06.01.24 0 .38z"/>
-            </svg>
+      <div className="h-screen mesh-gradient noise-overlay flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <div className="relative w-20 h-20 mx-auto mb-6">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl blur-xl opacity-50 animate-pulse-glow" />
+            <div className="relative w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl flex items-center justify-center shadow-2xl glow-blue">
+              <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.75 3.99-1.73 6.65-2.87 7.95-3.44 3.79-1.58 4.57-1.85 5.08-1.86.11 0 .37.03.54.17.14.12.18.28.2.45-.01.06.01.24 0 .38z"/>
+              </svg>
+            </div>
           </div>
-          <h2 className="text-white text-xl font-bold mb-2">Loading Files...</h2>
-          <p className="text-gray-400 text-sm">Reading chat history</p>
-        </div>
+          <h2 className="text-white text-2xl font-bold mb-2 gradient-text">Loading Files</h2>
+          <p className="text-zinc-400 text-sm mb-6">Reading chat history...</p>
+          <div className="flex justify-center gap-1">
+            {[0, 1, 2].map((i) => (
+              <motion.div
+                key={i}
+                className="w-2 h-2 bg-blue-500 rounded-full"
+                animate={{
+                  scale: [1, 1.5, 1],
+                  opacity: [0.5, 1, 0.5],
+                }}
+                transition={{
+                  duration: 1,
+                  repeat: Infinity,
+                  delay: i * 0.2,
+                }}
+              />
+            ))}
+          </div>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="h-screen mesh-gradient noise-overlay flex flex-col">
       {/* Header */}
-      <div className="bg-white/5 backdrop-blur-xl border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+      <div className="glass-strong border-b border-white/[0.06]">
+        <div className="max-w-[1600px] mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.75 3.99-1.73 6.65-2.87 7.95-3.44 3.79-1.58 4.57-1.85 5.08-1.86.11 0 .37.03.54.17.14.12.18.28.2.45-.01.06.01.24 0 .38z"/>
-                </svg>
+            <motion.div 
+              className="flex items-center gap-4"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl blur-lg opacity-50" />
+                <div className="relative w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl glow-blue">
+                  <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.75 3.99-1.73 6.65-2.87 7.95-3.44 3.79-1.58 4.57-1.85 5.08-1.86.11 0 .37.03.54.17.14.12.18.28.2.45-.01.06.01.24 0 .38z"/>
+                  </svg>
+                </div>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white">{chat.title}</h1>
-                <p className="text-xs text-gray-400">{currentPath}</p>
+                <h1 className="text-xl font-bold text-white gradient-text">{chat.title}</h1>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                  <p className="text-xs text-zinc-400 font-medium">{currentPath}</p>
+                </div>
               </div>
-            </div>
+            </motion.div>
 
-            <div className="flex items-center gap-2">
+            <motion.div 
+              className="flex items-center gap-3"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+            >
               <button
                 onClick={() => setShowSettings(true)}
-                className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-sm transition-all flex items-center gap-2"
+                className="btn-modern px-4 py-2.5 glass rounded-xl text-zinc-300 hover:text-white text-sm font-medium flex items-center gap-2"
               >
                 <Settings className="w-4 h-4" />
-                Settings
+                <span className="hidden sm:inline">Settings</span>
               </button>
               <button
                 onClick={() => setShowTransfers(!showTransfers)}
-                className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-sm transition-all relative"
+                className="btn-modern px-4 py-2.5 glass rounded-xl text-zinc-300 hover:text-white text-sm font-medium relative flex items-center gap-2"
               >
-                Transfers
+                <Upload className="w-4 h-4" />
+                <span className="hidden sm:inline">Transfers</span>
                 {transfers.filter(t => t.status === 'active').length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 rounded-full text-xs flex items-center justify-center">
+                  <motion.span 
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 rounded-full text-[10px] font-bold flex items-center justify-center text-white glow-blue"
+                  >
                     {transfers.filter(t => t.status === 'active').length}
-                  </span>
+                  </motion.span>
                 )}
               </button>
               <button
                 onClick={onLogout}
-                className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-xl text-red-400 text-sm transition-all flex items-center gap-2"
+                className="btn-modern px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-xl text-red-400 hover:text-red-300 text-sm font-medium flex items-center gap-2"
               >
                 <LogOut className="w-4 h-4" />
-                Logout
+                <span className="hidden sm:inline">Logout</span>
               </button>
-            </div>
+            </motion.div>
           </div>
         </div>
       </div>
 
       {/* Toolbar */}
-      <div className="max-w-7xl mx-auto px-4 py-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+      <div className="max-w-[1600px] mx-auto px-6 py-4 w-full">
+        <motion.div 
+          className="flex items-center justify-between gap-4"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
+        >
+          <div className="flex items-center gap-3">
             {currentPath !== '/' && (
-              <button
+              <motion.button
+                whileHover={{ scale: 1.02, x: -2 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={navigateUp}
-                className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-sm transition-all"
+                className="btn-modern px-4 py-2.5 glass rounded-xl text-zinc-300 hover:text-white text-sm font-medium flex items-center gap-2"
               >
-                ← Back
-              </button>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Back
+              </motion.button>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
+          <div className="flex items-center gap-3">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => setShowNewFolderDialog(true)}
-              className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-sm transition-all flex items-center gap-2"
+              className="btn-modern px-4 py-2.5 glass rounded-xl text-zinc-300 hover:text-white text-sm font-medium flex items-center gap-2"
             >
               <FolderPlus className="w-4 h-4" />
-              New Folder
-            </button>
-            <label className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:shadow-lg hover:shadow-blue-500/50 rounded-xl text-white text-sm font-semibold cursor-pointer transition-all flex items-center gap-2">
+              <span className="hidden sm:inline">New Folder</span>
+            </motion.button>
+            <motion.label
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="btn-modern btn-primary-modern px-5 py-2.5 rounded-xl text-white text-sm font-semibold cursor-pointer flex items-center gap-2"
+            >
               <Upload className="w-4 h-4" />
+              <span>Upload Files</span>
               <input
                 type="file"
                 multiple
                 onChange={handleUpload}
                 className="hidden"
               />
-              Upload Files
-            </label>
-            <button
+            </motion.label>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-              className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-sm transition-all flex items-center gap-2"
+              className="btn-modern px-4 py-2.5 glass rounded-xl text-zinc-300 hover:text-white text-sm font-medium flex items-center gap-2"
             >
               {viewMode === 'grid' ? <List className="w-4 h-4" /> : <Grid className="w-4 h-4" />}
-              {viewMode === 'grid' ? 'List' : 'Grid'}
-            </button>
+              <span className="hidden sm:inline">{viewMode === 'grid' ? 'List' : 'Grid'}</span>
+            </motion.button>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Transfers Panel */}
-      {showTransfers && (
-        <div className="max-w-7xl mx-auto px-4 pb-4">
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
-            <h3 className="text-white font-semibold mb-3">Transfers</h3>
-            {transfers.length === 0 ? (
-              <p className="text-gray-400 text-sm">No transfers</p>
-            ) : (
-              <div className="space-y-2">
-                {transfers.slice(0, 5).map(transfer => (
-                  <div key={transfer.id} className="bg-white/5 rounded-xl p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-white text-sm truncate">{transfer.fileName}</span>
-                      <span className={`text-xs ${
-                        transfer.status === 'completed' ? 'text-green-400' :
-                        transfer.status === 'error' ? 'text-red-400' :
-                        'text-blue-400'
-                      }`}>
-                        {transfer.status}
-                      </span>
-                    </div>
-                    {transfer.status === 'active' && (
-                      <div className="w-full bg-white/10 rounded-full h-2">
-                        <div
-                          className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all"
-                          style={{ width: `${transfer.progress}%` }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
+      <AnimatePresence>
+        {showTransfers && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="max-w-[1600px] mx-auto px-6 pb-4 w-full"
+          >
+            <div className="glass-strong rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-white font-semibold text-lg flex items-center gap-2">
+                  <Upload className="w-5 h-5 text-blue-400" />
+                  Active Transfers
+                </h3>
+                <span className="badge-modern badge-blue">
+                  {transfers.filter(t => t.status === 'active').length} active
+                </span>
               </div>
-            )}
-          </div>
-        </div>
-      )}
+              {transfers.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 mx-auto mb-3 bg-white/[0.03] rounded-2xl flex items-center justify-center">
+                    <Upload className="w-8 h-8 text-zinc-600" />
+                  </div>
+                  <p className="text-zinc-500 text-sm">No active transfers</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {transfers.slice(0, 5).map((transfer, i) => (
+                    <motion.div 
+                      key={transfer.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      className="glass-subtle rounded-xl p-4"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-white text-sm font-medium truncate flex-1 mr-4">{transfer.fileName}</span>
+                        <span className={`badge-modern ${
+                          transfer.status === 'completed' ? 'badge-green' :
+                          transfer.status === 'error' ? 'badge-red' :
+                          'badge-blue'
+                        }`}>
+                          {transfer.status}
+                        </span>
+                      </div>
+                      {transfer.status === 'active' && (
+                        <div className="progress-modern">
+                          <motion.div 
+                            className="progress-modern-fill"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${transfer.progress}%` }}
+                            transition={{ duration: 0.3 }}
+                          />
+                        </div>
+                      )}
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Files */}
-      <div className="max-w-7xl mx-auto px-4 pb-8">
-        {folders.length === 0 && regularFiles.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="w-20 h-20 mx-auto mb-4 bg-white/5 rounded-2xl flex items-center justify-center">
-              <svg className="w-10 h-10 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-            </div>
-            <p className="text-gray-400">No files yet</p>
-            <p className="text-gray-500 text-sm mt-1">Upload files to get started</p>
-          </div>
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-[1600px] mx-auto px-6 pb-8">
+          {folders.length === 0 && regularFiles.length === 0 ? (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center py-20"
+            >
+              <div className="relative w-24 h-24 mx-auto mb-6">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-3xl blur-xl animate-pulse-glow" />
+                <div className="relative w-full h-full bg-white/[0.03] border border-white/[0.06] rounded-3xl flex items-center justify-center">
+                  <svg className="w-12 h-12 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                </div>
+              </div>
+              <h3 className="text-white text-xl font-semibold mb-2">No files yet</h3>
+              <p className="text-zinc-500 text-sm">Upload files to get started</p>
+            </motion.div>
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {folders.map(folder => (
@@ -762,6 +863,7 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
             })}
           </div>
         )}
+        </div>
       </div>
 
       {/* Settings Panel */}
