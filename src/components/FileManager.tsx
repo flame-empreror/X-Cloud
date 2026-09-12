@@ -249,18 +249,27 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
   };
 
   const handleDelete = async (item: FileItem) => {
-    if (!item.telegramMessageId) return;
+    if (!item.telegramMessageId) {
+      alert('Cannot delete: No message ID found');
+      return;
+    }
 
     const itemType = item.type === 'folder' ? 'folder' : 'file';
     if (!confirm(`Delete ${itemType} "${item.name}"?`)) return;
 
     try {
+      console.log('[FileManager] Deleting', itemType, ':', item.name, 'Message ID:', item.telegramMessageId);
+      
+      // Delete the message from Telegram
       await mtprotoService.deleteMessage(chat.id, item.telegramMessageId);
+      
+      console.log('[FileManager] Delete successful, updating local state');
+      // Remove from local state
       setFiles(files.filter(f => f.id !== item.id));
       setContextMenu(null);
     } catch (error) {
       console.error('[FileManager] Delete failed:', error);
-      alert(`Failed to delete ${itemType}`);
+      alert(`Failed to delete ${itemType}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -293,50 +302,61 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
     try {
       console.log('[FileManager] Renaming:', renameItem.name, 'to', newName);
       
-      // Create updated metadata
-      const updatedMetadata = {
-        name: newName.trim(),
-        path: renameItem.path,
-        size: renameItem.size,
-        mimeType: renameItem.mimeType,
-        extension: renameItem.extension,
-        createdAt: renameItem.createdAt,
-        isFolder: renameItem.type === 'folder',
-      };
-
-      // Send updated metadata as a new message
-      const caption = `__TCLOUD_V1__${JSON.stringify(updatedMetadata)}`;
-      
       if (renameItem.type === 'folder') {
-        // For folders, send a text message with updated metadata
-        await mtprotoService.sendMessage(chat.id, caption);
+        // For folders: Delete old message, then create new one
+        if (!renameItem.telegramMessageId) {
+          alert('Cannot rename: No message ID found');
+          return;
+        }
+
+        console.log('[FileManager] Deleting old folder message:', renameItem.telegramMessageId);
+        
+        // Delete the old folder message
+        await mtprotoService.deleteMessage(chat.id, renameItem.telegramMessageId);
+        
+        // Create updated metadata
+        const updatedMetadata = {
+          name: newName.trim(),
+          path: renameItem.path,
+          size: renameItem.size,
+          mimeType: renameItem.mimeType,
+          extension: renameItem.extension,
+          createdAt: renameItem.createdAt,
+          isFolder: true,
+        };
+
+        // Send new folder message with updated metadata
+        const caption = `__TCLOUD_V1__${JSON.stringify(updatedMetadata)}`;
+        console.log('[FileManager] Creating new folder message with new name');
+        const newMessage = await mtprotoService.sendMessage(chat.id, caption);
+        
+        // Update local state with new message ID
+        const updatedFiles = files.map(f => {
+          if (f.id === renameItem.id) {
+            return {
+              ...f,
+              name: newName.trim(),
+              telegramMessageId: newMessage.id,
+              modifiedAt: Date.now(),
+            };
+          }
+          return f;
+        });
+
+        setFiles(updatedFiles);
       } else {
         // For files, we need to re-upload with new name (Telegram doesn't support renaming files)
-        // For now, we'll just update the local state
-        // In a real implementation, you'd need to download and re-upload with new name
         alert('File renaming requires re-uploading. For now, only folder renaming is fully supported.');
         return;
       }
 
-      // Update local state
-      const updatedFiles = files.map(f => {
-        if (f.id === renameItem.id) {
-          return {
-            ...f,
-            name: newName.trim(),
-            modifiedAt: Date.now(),
-          };
-        }
-        return f;
-      });
-
-      setFiles(updatedFiles);
       setShowRenameDialog(false);
       setRenameItem(null);
       setNewName('');
+      console.log('[FileManager] Rename successful');
     } catch (error) {
       console.error('[FileManager] Rename failed:', error);
-      alert('Failed to rename');
+      alert('Failed to rename: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
