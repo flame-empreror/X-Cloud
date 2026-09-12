@@ -88,61 +88,94 @@ export default function PersistentSidebar({ activeTab, onTabChange, onFolderClic
             </motion.button>
           );
         })}
-      </nav>
-
-      {/* Transfers Preview */}
-      {activeTransfers.length > 0 && (
-        <div className="px-4 mb-4">
-          <div className="card p-3">
+        
+        {/* Transfers Section - Expands when there are active transfers */}
+        <motion.div
+          animate={{ height: activeTransfers.length > 0 ? 'auto' : 'auto' }}
+          className="mt-2"
+        >
+          <div className="card overflow-hidden">
             <button
-              onClick={() => setShowAllTransfers(!showAllTransfers)}
-              className="w-full flex items-center justify-between mb-2"
+              onClick={() => activeTransfers.length > 0 && setShowAllTransfers(!showAllTransfers)}
+              className={`w-full flex items-center justify-between px-4 py-3 transition-all ${
+                activeTransfers.length > 0 ? 'hover:bg-[var(--bg-hover)]' : ''
+              }`}
             >
-              <div className="flex items-center gap-2">
-                <ArrowUpFromLine className="w-4 h-4" style={{ color: 'var(--accent)' }} />
-                <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-                  Transfers ({activeTransfers.length})
+              <div className="flex items-center gap-3">
+                <ArrowUpFromLine className="w-4 h-4" style={{ color: activeTransfers.length > 0 ? 'var(--accent)' : 'var(--text-muted)' }} />
+                <span className="text-sm font-medium" style={{ color: activeTransfers.length > 0 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                  Transfers
                 </span>
+                {activeTransfers.length > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background: 'var(--accent)', color: 'var(--bg-base)' }}>
+                    {activeTransfers.length}
+                  </span>
+                )}
               </div>
               {activeTransfers.length > 3 && (
                 showAllTransfers ? <ChevronDown className="w-3 h-3" style={{ color: 'var(--text-muted)' }} /> : <ChevronRight className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
               )}
             </button>
             
-            <div className="space-y-2">
-              {(showAllTransfers ? activeTransfers : previewTransfers).map((transfer) => (
-                <div key={transfer.id} className="p-2 rounded-lg" style={{ background: 'var(--bg-elevated)' }}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-medium truncate flex-1 mr-2" style={{ color: 'var(--text-primary)' }}>
-                      {transfer.fileName}
-                    </span>
-                    <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                      {Math.round(transfer.progress)}%
-                    </span>
+            <AnimatePresence>
+              {activeTransfers.length > 0 && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-4 pb-3 space-y-2">
+                    {(showAllTransfers ? activeTransfers : previewTransfers).map((transfer) => (
+                      <div key={transfer.id} className="p-2 rounded-lg group" style={{ background: 'var(--bg-elevated)' }}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-medium truncate flex-1 mr-2" style={{ color: 'var(--text-primary)' }}>
+                            {transfer.fileName}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => {
+                                if (transfer.abortController) {
+                                  transfer.abortController.abort();
+                                }
+                              }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-red-500/20"
+                              title="Cancel"
+                            >
+                              <X className="w-3 h-3" style={{ color: 'var(--error)' }} />
+                            </button>
+                            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                              {Math.round(transfer.progress)}%
+                            </span>
+                          </div>
+                        </div>
+                        <div className="progress-bar" style={{ height: '2px' }}>
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${transfer.progress}%` }}
+                            transition={{ duration: 0.3 }}
+                            className="progress-bar-fill"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {activeTransfers.length > 3 && !showAllTransfers && (
+                      <button
+                        onClick={() => onTabChange('transfers')}
+                        className="w-full mt-1 text-[10px] text-center py-1"
+                        style={{ color: 'var(--accent)' }}
+                      >
+                        View all →
+                      </button>
+                    )}
                   </div>
-                  <div className="progress-bar" style={{ height: '2px' }}>
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${transfer.progress}%` }}
-                      className="progress-bar-fill"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {activeTransfers.length > 3 && !showAllTransfers && (
-              <button
-                onClick={() => onTabChange('transfers')}
-                className="w-full mt-2 text-[10px] text-center"
-                style={{ color: 'var(--accent)' }}
-              >
-                View all transfers →
-              </button>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        </div>
-      )}
+        </motion.div>
+      </nav>
 
       {/* Pinned Folders */}
       {pinnedFolders.length > 0 && (

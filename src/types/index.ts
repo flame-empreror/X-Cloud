@@ -45,6 +45,7 @@ export interface TransferItem {
   transferred: number;
   error?: string;
   path: string;
+  abortController?: AbortController;
 }
 
 export interface AppSettings {

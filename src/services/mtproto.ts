@@ -306,7 +306,7 @@ class MTProtoService {
     }
   }
 
-  async downloadMedia(message: any, onProgress?: (progress: number) => void): Promise<Blob> {
+  async downloadMedia(message: any, onProgress?: (progress: number) => void, signal?: AbortSignal): Promise<Blob> {
     if (!this.client) throw new Error('Client not initialized');
 
     console.log('[MTProto] Starting download for message:', message.id);
@@ -419,6 +419,12 @@ class MTProtoService {
         
         const downloadChunk = async (offset: number): Promise<{ offset: number; data: Uint8Array } | null> => {
           try {
+            // Check if download was cancelled
+            if (signal?.aborted) {
+              console.log('[MTProto] Download cancelled');
+              return null;
+            }
+            
             if (!this.client) return null;
             
             const result = await this.client.call({
@@ -432,7 +438,11 @@ class MTProtoService {
               return { offset, data: result.bytes };
             }
             return null;
-          } catch (error) {
+          } catch (error: any) {
+            if (error.name === 'AbortError' || signal?.aborted) {
+              console.log('[MTProto] Download cancelled');
+              return null;
+            }
             console.error(`[MTProto] Failed to download chunk at offset ${offset}:`, error);
             return null;
           }
@@ -440,6 +450,12 @@ class MTProtoService {
         
         // Process chunks in batches
         for (let i = 0; i < chunkOffsets.length; i += parallelDownloads) {
+          // Check if download was cancelled
+          if (signal?.aborted) {
+            console.log('[MTProto] Download cancelled before batch');
+            break;
+          }
+          
           const batch = chunkOffsets.slice(i, i + parallelDownloads);
           console.log(`[MTProto] Downloading batch: offsets ${batch.join(', ')}`);
           
@@ -465,6 +481,12 @@ class MTProtoService {
         console.log('[MTProto] Starting sequential download...');
         
         for (const offset of chunkOffsets) {
+          // Check if download was cancelled
+          if (signal?.aborted) {
+            console.log('[MTProto] Download cancelled');
+            break;
+          }
+          
           console.log(`[MTProto] Downloading chunk at offset ${offset}...`);
           
           const result = await this.client.call({
@@ -493,6 +515,12 @@ class MTProtoService {
       }
       
       console.log('[MTProto] All chunks downloaded, combining...');
+      
+      // Check if download was cancelled
+      if (signal?.aborted) {
+        console.log('[MTProto] Download was cancelled');
+        throw new DOMException('Download was cancelled', 'AbortError');
+      }
       
       // Sort chunks by offset to ensure correct order
       chunks.sort((a, b) => a.offset - b.offset);

@@ -111,9 +111,11 @@ export default function FileManager({ chat, files, setFiles, onLogout, currentPa
   const handleDownload = async (file: FileItem) => {
     if (!file.telegramMessageId) return;
     const transferId = `download-${Date.now()}`;
+    const abortController = new AbortController();
     const transfer: TransferItem = {
       id: transferId, fileName: file.name, type: 'download',
       progress: 0, status: 'active', size: file.size, transferred: 0, path: file.path,
+      abortController,
     };
     setTransfers(prev => [...prev, transfer]);
     try {
@@ -124,7 +126,7 @@ export default function FileManager({ chat, files, setFiles, onLogout, currentPa
         setTransfers(prev => prev.map(t =>
           t.id === transferId ? { ...t, progress, transferred: Math.round(file.size * progress / 100) } : t
         ));
-      });
+      }, abortController.signal);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = file.name;
@@ -142,9 +144,16 @@ export default function FileManager({ chat, files, setFiles, onLogout, currentPa
   };
 
   const handleCancelTransfer = (transferId: string) => {
-    setTransfers(prev => prev.map(t => 
-      t.id === transferId ? { ...t, status: 'cancelled' } : t
-    ));
+    setTransfers(prev => prev.map(t => {
+      if (t.id === transferId) {
+        // Abort the download if it has an abort controller
+        if (t.abortController) {
+          t.abortController.abort();
+        }
+        return { ...t, status: 'cancelled' };
+      }
+      return t;
+    }));
   };
 
   const handlePinFolder = (folder: FileItem) => {

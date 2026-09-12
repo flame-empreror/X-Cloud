@@ -95,6 +95,21 @@ export default function TransfersPanel() {
                     </div>
                   </div>
 
+                  {/* Cancel button for active transfers */}
+                  {transfer.status === 'active' && (
+                    <button
+                      onClick={() => {
+                        if (transfer.abortController) {
+                          transfer.abortController.abort();
+                        }
+                      }}
+                      className="btn btn-ghost p-2"
+                      title="Cancel"
+                    >
+                      <X className="w-4 h-4" style={{ color: 'var(--error)' }} />
+                    </button>
+                  )}
+                  
                   <button
                     onClick={() => removeTransfer(transfer.id)}
                     className="btn btn-ghost p-2"
