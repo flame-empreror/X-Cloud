@@ -541,12 +541,32 @@ class MTProtoService {
       // First, we need to get the channel's input channel object
       let result;
       
-      // Check if peer is a channel (starts with -100)
-      const peerId = typeof peer === 'number' ? peer : peer?.id || peer;
-      const isChannel = peerId < 0;
+      // Check if peer is a channel
+      // Method 1: Check if peer object has _ === 'inputPeerChannel'
+      // Method 2: Check if peer ID is negative (channels have negative IDs)
+      let isChannel = false;
+      
+      if (typeof peer === 'object' && peer !== null) {
+        // If peer is an object, check its type
+        if (peer._ === 'inputPeerChannel') {
+          isChannel = true;
+          console.log('[MTProto] Detected channel from peer._ === inputPeerChannel');
+        } else if (peer.id && peer.id < 0) {
+          isChannel = true;
+          console.log('[MTProto] Detected channel from peer.id < 0');
+        }
+      } else if (typeof peer === 'number') {
+        // If peer is a number, check if it's negative
+        isChannel = peer < 0;
+        if (isChannel) {
+          console.log('[MTProto] Detected channel from peer < 0');
+        }
+      }
+      
+      console.log('[MTProto] isChannel:', isChannel);
       
       if (isChannel) {
-        console.log('[MTProto] Detected channel, using channels.deleteMessages');
+        console.log('[MTProto] Using channels.deleteMessages');
         
         // For channels, we need the input channel object
         // The peer should be an inputPeerChannel object
@@ -557,15 +577,12 @@ class MTProtoService {
             channelId: peer.channelId,
             accessHash: peer.accessHash
           } as any;
+          console.log('[MTProto] Constructed inputChannel from inputPeerChannel');
         } else {
-          // If peer is just a number, we need to construct the input channel
-          // This is a fallback - ideally peer should be the full inputPeerChannel object
-          console.warn('[MTProto] Peer is not a full inputPeerChannel object, attempting to construct');
-          inputChannel = {
-            _: 'inputChannel',
-            channelId: Math.abs(peerId),
-            accessHash: 0 // This might not work - we need the actual access hash
-          } as any;
+          // This shouldn't happen if detection is correct, but handle it anyway
+          console.error('[MTProto] ERROR: isChannel is true but peer is not inputPeerChannel');
+          console.error('[MTProto] Peer:', peer);
+          throw new Error('Cannot delete: Invalid channel peer object');
         }
         
         result = await this.client.call({
