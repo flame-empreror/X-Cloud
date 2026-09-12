@@ -364,20 +364,74 @@ class MTProtoService {
     console.log('[MTProto] Document ID is Long:', Long.isLong(convertedMessage.media?.document?.id));
     
     try {
-      // Use the client's downloadAsBuffer method with the fully converted message
-      console.log('[MTProto] Starting file download with converted message...');
+      // Extract the document from the converted message
+      const document = convertedMessage.media.document;
       
-      // Download the file using the properly converted message
-      const buffer = await (this.client as any).downloadAsBuffer(convertedMessage);
+      console.log('[MTProto] Document to download:', {
+        id: document.id.toString(),
+        accessHash: document.accessHash.toString(),
+        size: document.size,
+        dcId: document.dcId,
+        fileReferenceLength: document.fileReference?.length
+      });
+      
+      // Use the raw upload.getFile API for more control
+      console.log('[MTProto] Using raw upload.getFile API...');
+      
+      // Create the input file location
+      const inputFileLocation = {
+        _: 'inputDocumentFileLocation',
+        id: document.id,
+        accessHash: document.accessHash,
+        fileReference: document.fileReference,
+        thumbSize: ''
+      } as any;
+      
+      console.log('[MTProto] Input file location created');
+      
+      // Download the file in chunks
+      const chunks: Uint8Array[] = [];
+      let offset = 0;
+      const chunkSize = 1024 * 1024; // 1MB chunks
+      
+      while (offset < document.size) {
+        console.log(`[MTProto] Downloading chunk at offset ${offset}...`);
+        
+        const result = await this.client.call({
+          _: 'upload.getFile',
+          location: inputFileLocation,
+          offset: offset,
+          limit: chunkSize
+        }) as any;
+        
+        if (result.bytes && result.bytes.length > 0) {
+          chunks.push(result.bytes);
+          offset += result.bytes.length;
+          console.log(`[MTProto] Received chunk: ${result.bytes.length} bytes`);
+        } else {
+          break;
+        }
+      }
+      
+      console.log('[MTProto] All chunks downloaded, combining...');
+      
+      // Combine all chunks into a single buffer
+      const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+      const buffer = new Uint8Array(totalLength);
+      let position = 0;
+      for (const chunk of chunks) {
+        buffer.set(chunk, position);
+        position += chunk.length;
+      }
       
       console.log('[MTProto] File downloaded, buffer size:', buffer.length);
       
-      if (!buffer || buffer.length === 0) {
+      if (buffer.length === 0) {
         throw new Error('Received empty file data');
       }
       
       // Convert the buffer to a Blob
-      const blob = new Blob([buffer as any]);
+      const blob = new Blob([buffer]);
       console.log('[MTProto] Download complete, blob size:', blob.size);
       
       return blob;
