@@ -87,8 +87,8 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
         <div className="mb-6 rounded-xl p-4 border" style={{ background: 'rgba(139, 92, 246, 0.06)', borderColor: 'rgba(139, 92, 246, 0.15)' }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-500/15 flex items-center justify-center">
-                <Zap className="w-5 h-5 text-purple-400" />
+              <div className="w-8 h-8 rounded-xl bg-purple-500/15 flex items-center justify-center">
+                <Zap className="w-4 h-4 text-purple-400" />
               </div>
               <div>
                 <h3 className="text-white font-semibold text-sm">Speed Boost</h3>

@@ -200,10 +200,10 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
     return (
       <div className="h-screen flex items-center justify-center mesh-gradient">
         <div className="text-center">
-          <div className="w-14 h-14 mx-auto mb-4 rounded-xl bg-[var(--surface-3)] flex items-center justify-center">
-            <HardDrive className="w-7 h-7 text-blue-400 animate-pulse-soft" />
+          <div className="w-10 h-10 mx-auto mb-4 rounded-xl bg-[var(--surface-3)] flex items-center justify-center">
+            <HardDrive className="w-4 h-4 text-blue-400 animate-pulse-soft" />
           </div>
-          <h2 className="text-white text-lg font-semibold mb-1">Loading Files</h2>
+          <h2 className="text-white text-base font-semibold mb-1">Loading Files</h2>
           <p className="text-zinc-500 text-sm">Reading chat history...</p>
           <div className="mt-6 flex justify-center gap-1">
             {[0, 1, 2].map((i) => (
@@ -224,8 +224,8 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
       <header className="header-app">
         <div className="container-app flex items-center justify-between h-14">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-              <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+              <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69-.01-.03-.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.75 3.99-1.73 6.65-2.87 7.95-3.44 3.79-1.58 4.57-1.85 5.08-1.86.11 0 .37.03.54.17.14.12.18.28.2.45-.01.06.01.24 0 .38z"/>
               </svg>
             </div>
@@ -369,10 +369,10 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
         <div className="container-app py-6">
           {folders.length === 0 && regularFiles.length === 0 ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20">
-              <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-subtle)] flex items-center justify-center">
-                <FileText className="w-10 h-10 text-zinc-600" />
+              <div className="w-14 h-14 mx-auto mb-6 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-subtle)] flex items-center justify-center">
+                <FileText className="w-6 h-6 text-zinc-600" />
               </div>
-              <h3 className="text-white text-lg font-semibold mb-2">No files yet</h3>
+              <h3 className="text-white text-base font-semibold mb-2">No files yet</h3>
               <p className="text-zinc-500 text-sm mb-6">Upload files or create a folder to get started</p>
               <div className="flex items-center justify-center gap-3">
                 <button onClick={() => setShowNewFolderDialog(true)} className="btn btn-secondary gap-2">
@@ -403,8 +403,8 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
                   >
                     <MoreVertical className="w-3.5 h-3.5 text-zinc-400" />
                   </button>
-                  <div className="w-10 h-10 mx-auto mb-2 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-center">
-                    <Folder className="w-5 h-5 text-amber-400" />
+                  <div className="w-9 h-9 mx-auto mb-2 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-center">
+                    <Folder className="w-4 h-4 text-amber-400" />
                   </div>
                   <p className="text-white text-xs text-center truncate font-medium">{folder.name}</p>
                 </motion.div>
@@ -428,8 +428,8 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
                     >
                       <MoreVertical className="w-3.5 h-3.5 text-zinc-400" />
                     </button>
-                    <div className="w-10 h-10 mx-auto mb-2 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center">
-                      <Icon className="w-5 h-5 text-blue-400" />
+                    <div className="w-9 h-9 mx-auto mb-2 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center">
+                      <Icon className="w-4 h-4 text-blue-400" />
                     </div>
                     <p className="text-white text-xs text-center truncate font-medium mb-0.5">{file.name}</p>
                     <p className="text-zinc-500 text-[10px] text-center">{formatFileSize(file.size)}</p>
@@ -457,8 +457,8 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
                   className="card p-3 cursor-pointer group flex items-center gap-3 border"
                   style={{ background: 'var(--surface-2)', borderColor: 'var(--border-subtle)' }}
                 >
-                  <div className="w-10 h-10 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Folder className="w-5 h-5 text-amber-400" />
+                  <div className="w-9 h-9 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Folder className="w-4 h-4 text-amber-400" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-white text-sm font-medium truncate">{folder.name}</p>
@@ -485,8 +485,8 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
                     className="card p-3 group flex items-center gap-3 border"
                     style={{ background: 'var(--surface-2)', borderColor: 'var(--border-subtle)' }}
                   >
-                    <div className="w-10 h-10 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <Icon className="w-5 h-5 text-blue-400" />
+                    <div className="w-9 h-9 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <Icon className="w-4 h-4 text-blue-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm font-medium truncate">{file.name}</p>

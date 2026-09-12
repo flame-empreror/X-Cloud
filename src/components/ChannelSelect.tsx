@@ -68,7 +68,7 @@ export default function ChannelSelect({ onChatSelect }: ChannelSelectProps) {
         <div className="glass-strong rounded-2xl shadow-2xl overflow-hidden">
           {loading && (
             <div className="flex flex-col items-center justify-center py-16">
-              <Loader2 className="w-8 h-8 text-blue-400 animate-spin mb-4" />
+              <Loader2 className="w-6 h-6 text-blue-400 animate-spin mb-4" />
               <p className="text-zinc-400 text-sm">Loading your channels...</p>
             </div>
           )}
@@ -86,8 +86,8 @@ export default function ChannelSelect({ onChatSelect }: ChannelSelectProps) {
             <div className="max-h-[420px] overflow-y-auto">
               {chats.length === 0 ? (
                 <div className="text-center py-16">
-                  <div className="w-16 h-16 bg-zinc-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <Hash className="w-8 h-8 text-zinc-600" />
+                  <div className="w-12 h-12 bg-zinc-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Hash className="w-6 h-6 text-zinc-600" />
                   </div>
                   <p className="text-zinc-300 font-medium mb-1">No channels found</p>
                   <p className="text-zinc-500 text-sm">Join or create a channel first, then try again</p>
@@ -109,7 +109,7 @@ export default function ChannelSelect({ onChatSelect }: ChannelSelectProps) {
                       }`}
                       style={{ borderColor: selectedId === chat.id ? 'rgba(59, 130, 246, 0.3)' : 'transparent' }}
                     >
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${
                         selectedId === chat.id
                           ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white'
                           : 'bg-[var(--surface-4)] text-zinc-400 group-hover:bg-[var(--surface-5)]'

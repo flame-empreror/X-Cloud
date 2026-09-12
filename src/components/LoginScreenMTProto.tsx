@@ -84,10 +84,10 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       >
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="relative w-16 h-16 mx-auto mb-5">
+          <div className="relative w-14 h-14 mx-auto mb-5">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl blur-xl opacity-30 animate-glow-pulse" />
             <div className="relative w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl">
-              <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
+              <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69-.01-.03-.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.75 3.99-1.73 6.65-2.87 7.95-3.44 3.79-1.58 4.57-1.85 5.08-1.86.11 0 .37.03.54.17.14.12.18.28.2.45-.01.06.01.24 0 .38z"/>
               </svg>
             </div>
@@ -188,8 +188,8 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 </button>
 
                 <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 text-center">
-                  <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="w-6 h-6 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <svg className="w-3.5 h-3.5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>

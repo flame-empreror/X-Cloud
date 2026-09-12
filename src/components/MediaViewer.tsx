@@ -166,7 +166,7 @@ export default function MediaViewer({ file, chatId, inputPeer, onClose, files, o
           <div className="flex-1 flex items-center justify-center relative overflow-hidden">
             {loading ? (
               <div className="flex flex-col items-center gap-4">
-                <div className="w-12 h-12 border-3 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                <div className="w-10 h-10 border-3 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
                 <p className="text-gray-400">Loading media...</p>
               </div>
             ) : (
@@ -223,7 +223,7 @@ export default function MediaViewer({ file, chatId, inputPeer, onClose, files, o
                     className="flex flex-col items-center gap-6"
                   >
                     <div className="w-40 h-40 bg-gradient-to-br from-green-500 to-emerald-600 rounded-3xl flex items-center justify-center shadow-2xl">
-                      <Volume2 className="w-20 h-20 text-white" />
+                      <Volume2 className="w-12 h-12 text-white" />
                     </div>
                     <p className="text-white text-lg font-medium">{file.name}</p>
                     <audio src={mediaUrl} controls autoPlay className="w-80" />

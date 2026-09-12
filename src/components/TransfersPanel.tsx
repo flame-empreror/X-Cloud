@@ -34,8 +34,8 @@ export default function TransfersPanel() {
       {/* Speed Boost Banner */}
       {settings.speedBoost && activeTransfers.length > 0 && (
         <div className="mx-6 mt-4 card-warning rounded-2xl p-4 flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
-            <Zap className="w-4 h-4 text-white" />
+          <div className="w-7 h-7 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
+            <Zap className="w-3.5 h-3.5 text-white" />
           </div>
           <span className="text-amber-300 text-sm font-semibold">Speed Boost active — using {settings.parallelDownloads} parallel connections</span>
         </div>
@@ -50,7 +50,7 @@ export default function TransfersPanel() {
             className="flex flex-col items-center justify-center h-full text-center"
           >
             <div className="w-24 h-24 bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-white/10 rounded-3xl flex items-center justify-center mb-5">
-              <Clock className="w-10 h-10 text-blue-400" />
+              <Clock className="w-7 h-7 text-blue-400" />
             </div>
             <h3 className="text-white font-bold text-xl mb-2">No transfers yet</h3>
             <p className="text-gray-400 text-sm">Uploads and downloads will appear here in real-time</p>
@@ -77,7 +77,7 @@ export default function TransfersPanel() {
                 <div className="p-5">
                   <div className="flex items-center gap-4">
                     {/* Type Icon */}
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg ${
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg ${
                       transfer.type === 'upload'
                         ? 'bg-gradient-to-br from-blue-500 to-cyan-500'
                         : 'bg-gradient-to-br from-green-500 to-emerald-500'

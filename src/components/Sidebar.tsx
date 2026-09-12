@@ -30,8 +30,8 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         <div className="flex items-center gap-3">
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl blur-lg opacity-50" />
-            <div className="relative w-12 h-12 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-xl">
-              <Cloud className="w-6 h-6 text-white" />
+            <div className="relative w-10 h-10 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-xl">
+              <Cloud className="w-5 h-5 text-white" />
             </div>
           </div>
           <div>
@@ -45,8 +45,8 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
       {selectedChannel && (
         <div className="px-5 pb-5">
           <div className="card-primary rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
-              <HardDrive className="w-5 h-5 text-white" />
+            <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
+              <HardDrive className="w-4 h-4 text-white" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-white text-sm font-semibold truncate">{selectedChannel.title}</p>
@@ -82,7 +82,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                   transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                 />
               )}
-              <div className={`relative w-8 h-8 rounded-xl flex items-center justify-center ${
+              <div className={`relative w-7 h-7 rounded-xl flex items-center justify-center ${
                 isActive ? `bg-gradient-to-br ${item.gradient} shadow-lg` : 'bg-white/5 group-hover:bg-white/10'
               }`}>
                 <Icon className="w-4 h-4" />
@@ -104,8 +104,8 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         <div className="px-5 mb-4">
           <div className="card-warning rounded-2xl p-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
-                <Zap className="w-4 h-4 text-white" />
+              <div className="w-7 h-7 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
+                <Zap className="w-3.5 h-3.5 text-white" />
               </div>
               <div>
                 <p className="text-amber-300 text-xs font-bold">Speed Boost</p>
@@ -121,7 +121,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         <div className="flex items-center gap-3">
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl blur-md opacity-50" />
-            <div className="relative w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg">
+            <div className="relative w-9 h-9 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg">
               {user?.first_name?.charAt(0)?.toUpperCase() || 'U'}
             </div>
           </div>

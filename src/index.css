@@ -9,20 +9,20 @@
    DESIGN TOKENS — Vercel Geist & Linear Inspired
    ================================================ */
 :root {
-  /* Color Palette */
-  --bg-primary: #0a0a0b;
-  --bg-secondary: #111113;
-  --bg-tertiary: #18181b;
-  --bg-elevated: #1c1c1f;
-  --bg-hover: #232326;
-  --bg-active: #27272a;
+  /* Color Palette - Neutral Grey Theme */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #141414;
+  --bg-tertiary: #1a1a1a;
+  --bg-elevated: #1f1f1f;
+  --bg-hover: #262626;
+  --bg-active: #2d2d2d;
 
-  --surface-0: #09090b;
-  --surface-1: #111113;
-  --surface-2: #18181b;
-  --surface-3: #1f1f23;
-  --surface-4: #27272a;
-  --surface-5: #2e2e32;
+  --surface-0: #0a0a0a;
+  --surface-1: #141414;
+  --surface-2: #1a1a1a;
+  --surface-3: #1f1f1f;
+  --surface-4: #262626;
+  --surface-5: #2d2d2d;
 
   --border-subtle: rgba(255, 255, 255, 0.06);
   --border-default: rgba(255, 255, 255, 0.08);
@@ -30,9 +30,9 @@
   --border-active: rgba(255, 255, 255, 0.18);
 
   --text-primary: #fafafa;
-  --text-secondary: #a1a1aa;
-  --text-tertiary: #71717a;
-  --text-muted: #52525b;
+  --text-secondary: #a3a3a3;
+  --text-tertiary: #737373;
+  --text-muted: #525252;
 
   --accent-blue: #3b82f6;
   --accent-purple: #8b5cf6;

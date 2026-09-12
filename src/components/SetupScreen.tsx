@@ -23,8 +23,8 @@ export default function SetupScreen() {
       >
         <div className="glass-strong rounded-2xl p-8 shadow-2xl">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 mx-auto mb-5 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center">
-              <AlertCircle className="w-8 h-8 text-amber-400" />
+            <div className="w-14 h-14 mx-auto mb-5 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center">
+              <AlertCircle className="w-6 h-6 text-amber-400" />
             </div>
             <h1 className="text-2xl font-bold text-white mb-2">Setup Required</h1>
             <p className="text-zinc-400 text-sm">Configure Telegram API credentials to continue</p>
@@ -40,7 +40,7 @@ export default function SetupScreen() {
                 className="flex items-start gap-4 p-4 rounded-xl border"
                 style={{ background: 'var(--surface-2)', borderColor: 'var(--border-subtle)' }}
               >
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                   {step.num}
                 </div>
                 <div className="flex-1">
