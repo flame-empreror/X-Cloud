@@ -305,8 +305,7 @@ class MTProtoService {
   async downloadMedia(message: any): Promise<Blob> {
     if (!this.client) throw new Error('Client not initialized');
 
-    console.log('[MTProto] Downloading media from message:', message.id);
-    console.log('[MTProto] Full message:', message);
+    console.log('[MTProto] Starting download for message:', message.id);
     
     const media = message.media;
     
@@ -316,51 +315,76 @@ class MTProtoService {
     
     console.log('[MTProto] Media type:', media._);
     
-    // Helper function to convert serialized Long objects back to proper Long instances
-    const convertLong = (obj: any): any => {
+    // Extract the document from the message
+    if (media._ !== 'messageMediaDocument' || !media.document) {
+      throw new Error('Message does not contain a document');
+    }
+    
+    const document = media.document;
+    console.log('[MTProto] Document ID:', document.id);
+    console.log('[MTProto] Document size:', document.size);
+    
+    // Helper function to convert serialized Long objects to proper Long instances
+    const convertLong = (obj: any): Long | any => {
       if (obj && typeof obj === 'object' && 'low' in obj && 'high' in obj) {
+        console.log('[MTProto] Converting Long object:', { low: obj.low, high: obj.high });
         return Long.fromBits(obj.low, obj.high, obj.unsigned || false);
       }
       return obj;
     };
     
-    // Helper function to recursively convert all Long objects in an object
-    const convertAllLongs = (obj: any): any => {
-      if (!obj || typeof obj !== 'object') return obj;
-      
-      const result: any = Array.isArray(obj) ? [] : {};
-      
-      for (const key in obj) {
-        const value = obj[key];
-        
-        // Check if this is a Long object
-        if (value && typeof value === 'object' && 'low' in value && 'high' in value) {
-          result[key] = convertLong(value);
-        }
-        // Recursively convert nested objects
-        else if (value && typeof value === 'object') {
-          result[key] = convertAllLongs(value);
-        }
-        // Keep primitive values as-is
-        else {
-          result[key] = value;
-        }
-      }
-      
-      return result;
+    // Convert document's Long properties
+    const convertedDoc = {
+      _: document._,
+      id: convertLong(document.id),
+      accessHash: convertLong(document.accessHash),
+      fileReference: document.fileReference,
+      date: document.date,
+      mimeType: document.mimeType,
+      size: document.size,
+      dcId: document.dcId,
+      attributes: document.attributes,
+      thumbs: document.thumbs,
+      videoThumbs: document.videoThumbs
     };
     
-    // Convert all Long objects in the message to proper Long instances
-    const convertedMessage = convertAllLongs(message);
+    console.log('[MTProto] Converted document ID:', convertedDoc.id);
+    console.log('[MTProto] Converted document accessHash:', convertedDoc.accessHash);
     
-    console.log('[MTProto] Converted message Long objects');
-    console.log('[MTProto] Document ID type:', typeof convertedMessage.media?.document?.id);
+    // Create a proper InputDocumentLocation for downloading
+    const inputDocument = {
+      _: 'inputDocument',
+      id: convertedDoc.id,
+      accessHash: convertedDoc.accessHash,
+      fileReference: convertedDoc.fileReference
+    };
     
-    // Pass the converted message object to downloadAsBuffer
-    const buffer = await this.client.downloadAsBuffer(convertedMessage);
+    console.log('[MTProto] Created InputDocument:', inputDocument);
     
-    console.log('[MTProto] Download complete, buffer size:', buffer.length);
-    return new Blob([buffer as any]);
+    try {
+      // Use the client's downloadAsBuffer method with the converted document
+      console.log('[MTProto] Starting file download with converted document...');
+      
+      // Download the file using the properly converted document
+      // Cast to any to bypass TypeScript type checking for @mtcute internal types
+      const buffer = await (this.client as any).downloadAsBuffer(convertedDoc);
+      
+      console.log('[MTProto] File downloaded, buffer size:', buffer.length);
+      
+      if (!buffer || buffer.length === 0) {
+        throw new Error('Received empty file data');
+      }
+      
+      // Convert the buffer to a Blob
+      const blob = new Blob([buffer as any]);
+      console.log('[MTProto] Download complete, blob size:', blob.size);
+      
+      return blob;
+    } catch (error: any) {
+      console.error('[MTProto] Download failed:', error);
+      console.error('[MTProto] Error details:', error.stack);
+      throw new Error(`Download failed: ${error.message}`);
+    }
   }
 
   async deleteMessage(peer: any, messageId: number): Promise<void> {
