@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Upload, FolderPlus, Folder, Pin, PinOff, Download } from 'lucide-react';
+import { Upload, FolderPlus, Folder, Pin, PinOff, Download, FolderInput } from 'lucide-react';
 import { mtprotoService } from '../services/mtproto';
 import { FileItem, TransferItem, TelegramChat } from '../types';
 import { formatFileSize, getFileIconComponent } from '../utils/fileUtils';
@@ -22,6 +22,8 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
   const menuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showMoveDialog, setShowMoveDialog] = useState(false);
+  const [fileToMove, setFileToMove] = useState<FileItem | null>(null);
   const { pinnedFolders, pinFolder, unpinFolder, transfers, addTransfer, updateTransfer } = useAppStore();
 
   useEffect(() => { loadChatHistory(); }, [chat.id]);
@@ -150,6 +152,56 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
       unpinFolder(folderPath);
     } else {
       pinFolder(folderPath, folder.name);
+    }
+  };
+
+  const handleMove = async (destinationPath: string) => {
+    if (!fileToMove) return;
+    
+    try {
+      console.log('[FileManager] Moving file to:', destinationPath);
+      
+      // Get the message to update
+      const messages = await mtprotoService.getMessages(chat.id, 100, chat.inputPeer);
+      const message = messages.find((m: any) => m.id === fileToMove.telegramMessageId);
+      
+      if (!message) {
+        console.error('[FileManager] Message not found for move');
+        return;
+      }
+
+      // Extract current metadata
+      const caption = message.message || message.text || '';
+      if (!caption.startsWith('__TCLOUD_V1__')) {
+        console.error('[FileManager] Invalid metadata format');
+        return;
+      }
+
+      const jsonStr = caption.substring('__TCLOUD_V1__'.length);
+      const metadata = JSON.parse(jsonStr);
+
+      // Update the path in metadata
+      metadata.path = destinationPath;
+      metadata.modifiedAt = Date.now();
+
+      // Create new caption with updated metadata
+      const newCaption = `__TCLOUD_V1__${JSON.stringify(metadata)}`;
+
+      console.log('[FileManager] Updating message caption...');
+      
+      // Update the message with new caption
+      await mtprotoService.editMessageCaption(chat.inputPeer, message.id, newCaption);
+
+      console.log('[FileManager] File moved successfully');
+
+      // Reload the file list
+      await loadChatHistory();
+
+      // Close the dialog
+      setShowMoveDialog(false);
+      setFileToMove(null);
+    } catch (error) {
+      console.error('[FileManager] Failed to move file:', error);
     }
   };
 
@@ -354,12 +406,25 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
             </button>
           )}
           {contextMenu.item.type === 'file' && (
-            <button
-              onClick={() => { handleDownload(contextMenu.item); setContextMenu(null); }}
-              className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-elevated rounded transition-colors flex items-center gap-2"
-            >
-              <Download className="w-4 h-4" /> Download
-            </button>
+            <>
+              <button
+                onClick={() => { handleDownload(contextMenu.item); setContextMenu(null); }}
+                className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-elevated rounded transition-colors flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" /> Download
+              </button>
+              <button
+                onClick={() => {
+                  setFileToMove(contextMenu.item);
+                  setShowMoveDialog(true);
+                  setContextMenu(null);
+                }}
+                className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-elevated rounded transition-colors flex items-center gap-2"
+              >
+                <FolderInput className="w-4 h-4" />
+                Move to...
+              </button>
+            </>
           )}
         </div>
       )}
@@ -408,6 +473,49 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
                 Create
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Move Dialog */}
+      {showMoveDialog && fileToMove && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-surface border border-default rounded-lg p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <h3 className="text-lg font-bold text-primary mb-4">Move "{fileToMove.name}" to...</h3>
+            <div className="space-y-2 mb-4">
+              {/* Root option */}
+              <button
+                onClick={() => {
+                  handleMove('/');
+                }}
+                className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-elevated rounded transition-colors flex items-center gap-2"
+              >
+                <Folder className="w-4 h-4" />
+                Root (/)
+              </button>
+              {/* All folders */}
+              {files.filter(f => f.type === 'folder').map((folder) => {
+                const folderPath = folder.path === '/' ? `/${folder.name}` : `${folder.path}/${folder.name}`;
+                return (
+                  <button
+                    key={folder.id}
+                    onClick={() => {
+                      handleMove(folderPath);
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-elevated rounded transition-colors flex items-center gap-2"
+                  >
+                    <Folder className="w-4 h-4" />
+                    {folderPath}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => { setShowMoveDialog(false); setFileToMove(null); }}
+              className="btn btn-secondary w-full"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}

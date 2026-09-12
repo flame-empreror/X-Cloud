@@ -674,6 +674,69 @@ class MTProtoService {
     }
   }
 
+  async editMessageCaption(peer: any, messageId: number, caption: string): Promise<void> {
+    if (!this.client) throw new Error('Client not initialized');
+
+    console.log('[MTProto] ========== EDIT MESSAGE CAPTION START ==========');
+    console.log('[MTProto] Message ID:', messageId);
+    console.log('[MTProto] Peer:', peer);
+    console.log('[MTProto] New caption:', caption.substring(0, 100) + '...');
+
+    try {
+      // Check if peer is a channel
+      let isChannel = false;
+      
+      if (typeof peer === 'object' && peer !== null) {
+        if (peer._ === 'inputPeerChannel') {
+          isChannel = true;
+        } else if (peer.id && peer.id < 0) {
+          isChannel = true;
+        }
+      } else if (typeof peer === 'number') {
+        isChannel = peer < 0;
+      }
+      
+      console.log('[MTProto] isChannel:', isChannel);
+      
+      if (isChannel) {
+        console.log('[MTProto] Using channels.editMessage for channel');
+        
+        // For channels, we need the input channel object
+        let inputChannel;
+        if (typeof peer === 'object' && peer._ === 'inputPeerChannel') {
+          inputChannel = {
+            _: 'inputChannel',
+            channelId: peer.channelId,
+            accessHash: peer.accessHash
+          } as any;
+        } else {
+          throw new Error('Cannot edit: Invalid channel peer object');
+        }
+        
+        await this.client.call({
+          _: 'channels.editMessage',
+          peer: inputChannel,
+          id: messageId,
+          message: caption,
+        } as any);
+      } else {
+        console.log('[MTProto] Using messages.editMessage for regular chat');
+        await this.client.call({
+          _: 'messages.editMessage',
+          peer: peer,
+          id: messageId,
+          message: caption,
+        });
+      }
+
+      console.log('[MTProto] ✅ Edit message caption successful');
+      console.log('[MTProto] ========== EDIT MESSAGE CAPTION COMPLETE ==========');
+    } catch (error) {
+      console.error('[MTProto] Error in editMessageCaption:', error);
+      throw error;
+    }
+  }
+
   async logout(): Promise<void> {
     if (!this.client) return;
 
