@@ -302,7 +302,7 @@ class MTProtoService {
     }
   }
 
-  async downloadMedia(message: any): Promise<Blob> {
+  async downloadMedia(message: any, onProgress?: (progress: number) => void): Promise<Blob> {
     if (!this.client) throw new Error('Client not initialized');
 
     console.log('[MTProto] Starting download for message:', message.id);
@@ -393,6 +393,7 @@ class MTProtoService {
       const chunks: Uint8Array[] = [];
       let offset = 0;
       const chunkSize = 1024 * 1024; // 1MB chunks
+      let downloadedBytes = 0;
       
       while (offset < document.size) {
         console.log(`[MTProto] Downloading chunk at offset ${offset}...`);
@@ -407,7 +408,17 @@ class MTProtoService {
         if (result.bytes && result.bytes.length > 0) {
           chunks.push(result.bytes);
           offset += result.bytes.length;
+          downloadedBytes += result.bytes.length;
           console.log(`[MTProto] Received chunk: ${result.bytes.length} bytes`);
+          
+          // Calculate and report progress
+          const progress = Math.min(100, (downloadedBytes / document.size) * 100);
+          console.log(`[MTProto] Download progress: ${progress.toFixed(2)}%`);
+          
+          // Call progress callback if provided
+          if (onProgress) {
+            onProgress(progress);
+          }
         } else {
           break;
         }
@@ -433,6 +444,11 @@ class MTProtoService {
       // Convert the buffer to a Blob
       const blob = new Blob([buffer]);
       console.log('[MTProto] Download complete, blob size:', blob.size);
+      
+      // Report 100% completion
+      if (onProgress) {
+        onProgress(100);
+      }
       
       return blob;
     } catch (error: any) {

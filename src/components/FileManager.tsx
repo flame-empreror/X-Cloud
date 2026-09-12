@@ -207,7 +207,16 @@ export default function FileManager({ chat, files, setFiles, onLogout }: FileMan
       }
 
       console.log('[FileManager] Found message, starting download');
-      const blob = await mtprotoService.downloadMedia(message);
+      const blob = await mtprotoService.downloadMedia(message, (progress) => {
+        console.log('[FileManager] Download progress:', progress);
+        setTransfers(prev => prev.map(t => 
+          t.id === transferId ? { 
+            ...t, 
+            progress: progress,
+            transferred: Math.round(file.size * progress / 100)
+          } : t
+        ));
+      });
       
       console.log('[FileManager] Download complete, creating download link');
       const url = URL.createObjectURL(blob);
