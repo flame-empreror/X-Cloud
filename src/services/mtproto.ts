@@ -306,6 +306,17 @@ class MTProtoService {
     if (!this.client) throw new Error('Client not initialized');
 
     console.log('[MTProto] Starting download for message:', message.id);
+    console.log('[MTProto] Full message structure:', JSON.stringify(message, (key, value) => {
+      // Handle Long objects in JSON serialization
+      if (value && typeof value === 'object' && 'low' in value && 'high' in value) {
+        return { __type: 'Long', low: value.low, high: value.high, unsigned: value.unsigned };
+      }
+      // Handle Uint8Array
+      if (value instanceof Uint8Array) {
+        return { __type: 'Uint8Array', length: value.length };
+      }
+      return value;
+    }, 2));
     
     const media = message.media;
     
@@ -315,59 +326,49 @@ class MTProtoService {
     
     console.log('[MTProto] Media type:', media._);
     
-    // Extract the document from the message
-    if (media._ !== 'messageMediaDocument' || !media.document) {
-      throw new Error('Message does not contain a document');
-    }
-    
-    const document = media.document;
-    console.log('[MTProto] Document ID:', document.id);
-    console.log('[MTProto] Document size:', document.size);
-    
-    // Helper function to convert serialized Long objects to proper Long instances
-    const convertLong = (obj: any): Long | any => {
-      if (obj && typeof obj === 'object' && 'low' in obj && 'high' in obj) {
-        console.log('[MTProto] Converting Long object:', { low: obj.low, high: obj.high });
-        return Long.fromBits(obj.low, obj.high, obj.unsigned || false);
+    // Helper function to recursively convert ALL Long objects in an object
+    const convertAllLongs = (obj: any): any => {
+      if (!obj || typeof obj !== 'object') return obj;
+      
+      // If it's a Long object, convert it
+      if ('low' in obj && 'high' in obj && Object.keys(obj).length <= 3) {
+        console.log('[MTProto] Converting Long:', { low: obj.low, high: obj.high });
+        const long = Long.fromBits(obj.low, obj.high, obj.unsigned || false);
+        console.log('[MTProto] Converted to Long instance:', long.toString());
+        return long;
       }
-      return obj;
+      
+      // If it's an array, convert each element
+      if (Array.isArray(obj)) {
+        return obj.map(item => convertAllLongs(item));
+      }
+      
+      // If it's a Uint8Array, keep it as-is
+      if (obj instanceof Uint8Array) {
+        return obj;
+      }
+      
+      // Otherwise, recursively convert all properties
+      const result: any = {};
+      for (const key in obj) {
+        result[key] = convertAllLongs(obj[key]);
+      }
+      return result;
     };
     
-    // Convert document's Long properties
-    const convertedDoc = {
-      _: document._,
-      id: convertLong(document.id),
-      accessHash: convertLong(document.accessHash),
-      fileReference: document.fileReference,
-      date: document.date,
-      mimeType: document.mimeType,
-      size: document.size,
-      dcId: document.dcId,
-      attributes: document.attributes,
-      thumbs: document.thumbs,
-      videoThumbs: document.videoThumbs
-    };
+    // Convert the ENTIRE message object, not just the document
+    console.log('[MTProto] Converting all Long objects in message...');
+    const convertedMessage = convertAllLongs(message);
     
-    console.log('[MTProto] Converted document ID:', convertedDoc.id);
-    console.log('[MTProto] Converted document accessHash:', convertedDoc.accessHash);
-    
-    // Create a proper InputDocumentLocation for downloading
-    const inputDocument = {
-      _: 'inputDocument',
-      id: convertedDoc.id,
-      accessHash: convertedDoc.accessHash,
-      fileReference: convertedDoc.fileReference
-    };
-    
-    console.log('[MTProto] Created InputDocument:', inputDocument);
+    console.log('[MTProto] Conversion complete. Document ID type:', typeof convertedMessage.media?.document?.id);
+    console.log('[MTProto] Document ID is Long:', Long.isLong(convertedMessage.media?.document?.id));
     
     try {
-      // Use the client's downloadAsBuffer method with the converted document
-      console.log('[MTProto] Starting file download with converted document...');
+      // Use the client's downloadAsBuffer method with the fully converted message
+      console.log('[MTProto] Starting file download with converted message...');
       
-      // Download the file using the properly converted document
-      // Cast to any to bypass TypeScript type checking for @mtcute internal types
-      const buffer = await (this.client as any).downloadAsBuffer(convertedDoc);
+      // Download the file using the properly converted message
+      const buffer = await (this.client as any).downloadAsBuffer(convertedMessage);
       
       console.log('[MTProto] File downloaded, buffer size:', buffer.length);
       
