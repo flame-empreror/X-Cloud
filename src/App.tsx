@@ -32,10 +32,13 @@ export default function App() {
           const user = await mtprotoService.getMe();
           console.log('[App] User data from getMe():', user);
           if (user) {
+            // Extract data from the raw property
+            const rawUser = (user as any).raw || user;
             const userData = {
-              id: user.id,
-              first_name: user.firstName || user.username || 'User',
-              username: user.username,
+              id: rawUser.id,
+              first_name: rawUser.first_name || rawUser.firstName || 'User',
+              last_name: rawUser.last_name || rawUser.lastName,
+              username: rawUser.username,
               photo_url: user.photo_url,
             };
             console.log('[App] Setting user data:', userData);
@@ -63,10 +66,13 @@ export default function App() {
       const user = await mtprotoService.getMe();
       console.log('[App] User data from getMe() after login:', user);
       if (user) {
+        // Extract data from the raw property
+        const rawUser = (user as any).raw || user;
         const userData = {
-          id: user.id,
-          first_name: user.firstName || user.username || 'User',
-          username: user.username,
+          id: rawUser.id,
+          first_name: rawUser.first_name || rawUser.firstName || 'User',
+          last_name: rawUser.last_name || rawUser.lastName,
+          username: rawUser.username,
           photo_url: user.photo_url,
         };
         console.log('[App] Setting user data after login:', userData);

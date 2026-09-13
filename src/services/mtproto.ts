@@ -123,6 +123,11 @@ class MTProtoService {
     console.log('[MTProto] getMe() returned:', user);
     console.log('[MTProto] User properties:', Object.keys(user || {}));
     
+    // Extract user data from the raw property
+    const rawUser = (user as any).raw || user;
+    console.log('[MTProto] Raw user data:', rawUser);
+    console.log('[MTProto] Raw user keys:', Object.keys(rawUser || {}));
+    
     // Try to get the user's profile photo
     let photoUrl: string | undefined;
     try {
@@ -140,6 +145,7 @@ class MTProtoService {
       if (photos && photos.photos && photos.photos.length > 0) {
         const photo = photos.photos[0] as any;
         console.log('[MTProto] Photo object:', photo);
+        console.log('[MTProto] Photo keys:', Object.keys(photo || {}));
         // Try different possible properties for photo data
         if (photo.photo) {
           photoUrl = photo.photo;
@@ -155,7 +161,10 @@ class MTProtoService {
     }
     
     const result = {
-      ...user,
+      id: rawUser.id,
+      first_name: rawUser.first_name || rawUser.firstName || 'User',
+      last_name: rawUser.last_name || rawUser.lastName,
+      username: rawUser.username,
       photo_url: photoUrl,
     };
     
