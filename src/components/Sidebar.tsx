@@ -1,7 +1,12 @@
 import { useAppStore } from '../store';
+import { useEffect } from 'react';
 
 export function Sidebar() {
   const { activeTab, setActiveTab, user } = useAppStore();
+
+  useEffect(() => {
+    console.log('[Sidebar] User data received:', user);
+  }, [user]);
 
   const tabs = [
     { id: 'files', label: 'Files', icon: '📁' },

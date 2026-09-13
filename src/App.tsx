@@ -30,13 +30,16 @@ export default function App() {
           setAuthenticated(true);
           // Fetch and store user information
           const user = await mtprotoService.getMe();
+          console.log('[App] User data from getMe():', user);
           if (user) {
-            useAppStore.getState().setUser({
+            const userData = {
               id: user.id,
               first_name: user.firstName || user.username || 'User',
               username: user.username,
               photo_url: user.photo_url,
-            });
+            };
+            console.log('[App] Setting user data:', userData);
+            useAppStore.getState().setUser(userData);
           }
           const savedChat = localStorage.getItem('telecloud_selected_chat');
           if (savedChat) {
@@ -58,13 +61,16 @@ export default function App() {
     // Fetch and store user information after login
     try {
       const user = await mtprotoService.getMe();
+      console.log('[App] User data from getMe() after login:', user);
       if (user) {
-        useAppStore.getState().setUser({
+        const userData = {
           id: user.id,
           first_name: user.firstName || user.username || 'User',
           username: user.username,
           photo_url: user.photo_url,
-        });
+        };
+        console.log('[App] Setting user data after login:', userData);
+        useAppStore.getState().setUser(userData);
       }
     } catch (error) {
       console.error('[App] Failed to fetch user info after login:', error);
