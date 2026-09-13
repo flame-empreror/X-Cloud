@@ -1,58 +1,51 @@
 @import "tailwindcss";
+@import "./styles/design-system.css";
 
 :root {
-  /* Base colors - Dark theme */
-  --bg-base: #0a0a0b;
-  --bg-surface: #121214;
-  --bg-elevated: #1a1a1d;
-  --bg-hover: #232327;
-  --bg-active: #2a2a2f;
-  
-  /* Text colors */
-  --text-primary: #ffffff;
-  --text-secondary: #a1a1aa;
-  --text-muted: #71717a;
-  --text-disabled: #52525b;
-  
-  /* Border colors */
-  --border-default: #27272a;
-  --border-hover: #3f3f46;
-  --border-focus: #52525b;
-  
-  /* Accent colors */
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
-  --accent-muted: rgba(59, 130, 246, 0.1);
+  --bg-base: #0a0a0c;
+  --bg-surface: #111114;
+  --bg-elevated: #17171a;
+  --bg-hover: #1e1e22;
+  --bg-active: #23232a;
+
+  --text-primary: #f2f2f5;
+  --text-secondary: #a8a8b0;
+  --text-muted: #6e6e78;
+  --text-disabled: #484850;
+
+  --border-default: #25252b;
+  --border-hover: #33333d;
+  --border-focus: #52525e;
+
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --accent-muted: rgba(99, 102, 241, 0.1);
   --accent-secondary: #8b5cf6;
-  
-  /* Status colors */
+
   --success: #22c55e;
   --success-muted: rgba(34, 197, 94, 0.1);
   --warning: #f59e0b;
   --warning-muted: rgba(245, 158, 11, 0.1);
-  --error: #ef4444;
-  --error-muted: rgba(239, 68, 68, 0.1);
-  --info: #0ea5e9;
-  --info-muted: rgba(14, 165, 233, 0.1);
-  
-  /* Effects */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
-  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
-  
-  /* Radius */
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-2xl: 20px;
+  --error: #f43f5e;
+  --error-muted: rgba(244, 63, 94, 0.1);
+  --info: #38bdf8;
+  --info-muted: rgba(56, 189, 248, 0.1);
+
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.25);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.35);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.4);
+
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 24px;
   --radius-full: 9999px;
-  
-  /* Transitions */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  --transition-fast: 120ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
 }
 
 * {
@@ -124,13 +117,15 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  background: var(--accent);
   color: white;
-  box-shadow: var(--shadow-sm), 0 0 0 0 rgba(59, 130, 246, 0);
+  border-color: var(--accent);
 }
 
 .btn-primary:hover:not(:disabled) {
-  box-shadow: var(--shadow-md), 0 0 20px rgba(59, 130, 246, 0.3);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  box-shadow: var(--shadow-sm);
   transform: translateY(-1px);
 }
 
@@ -208,12 +203,15 @@ body {
   border-color: var(--border-hover);
 }
 
-/* Glass effect */
-.glass {
-  background: rgba(18, 18, 20, 0.8);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+/* Flat card surface */
+.surface-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--transition-fast);
+}
+.surface-card:hover {
+  border-color: var(--border-hover);
 }
 
 /* Badge styles */

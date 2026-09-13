@@ -138,7 +138,7 @@ export default function App() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="max-w-md w-full mx-4 p-6 rounded-2xl glass"
+          className="max-w-md w-full mx-4 p-8 rounded-3xl surface-card"
         >
           <div className="text-center mb-6">
             <div className="w-12 h-12 mx-auto mb-4 rounded-xl flex items-center justify-center" style={{ background: 'var(--error-muted)' }}>
@@ -174,7 +174,7 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-20 lg:hidden"
-            style={{ background: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(4px)' }}
+            style={{ background: 'rgba(10, 10, 12, 0.75)' }}
             onClick={() => setSidebarOpen(false)}
           />
         )}

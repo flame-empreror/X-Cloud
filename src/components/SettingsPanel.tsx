@@ -8,14 +8,14 @@ export function SettingsPanel() {
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ background: 'var(--bg-base)' }}>
       {/* Header */}
-      <header className="px-6 py-5 border-b" style={{ borderColor: 'var(--border-default)', background: 'var(--bg-surface)' }}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent-muted)' }}>
-            <Settings className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+      <header className="px-6 py-5 border-b border-[var(--border-default)]" style={{ background: 'var(--bg-surface)' }}>
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-md shadow-[var(--accent-muted)]" style={{ background: 'var(--accent)' }}>
+            <Settings className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Settings</h2>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Configure your application preferences</p>
+            <h2 className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Settings</h2>
+            <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Configure your preferences</p>
           </div>
         </div>
       </header>
@@ -23,27 +23,28 @@ export function SettingsPanel() {
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-2xl mx-auto space-y-6">
-          {/* Performance Section */}
+          {/* Performance */}
           <motion.section
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="p-5 rounded-xl border"
-            style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-default)' }}
+            transition={{ duration: 0.3 }}
+            className="p-6 rounded-[20px] border border-[var(--border-default)]" style={{ background: 'var(--bg-surface)' }}
           >
-            <div className="flex items-center gap-3 mb-4">
-              <Zap className="w-5 h-5" style={{ color: 'var(--warning)' }} />
-              <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Performance</h3>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(245,158,11,0.1)' }}>
+                <Zap className="w-4.5 h-4.5" style={{ color: 'var(--warning)' }} />
+              </div>
+              <h3 className="text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}>Performance</h3>
             </div>
-            
-            <div className="space-y-4">
+
+            <div className="space-y-5">
               <SettingToggle
                 icon={Zap}
                 label="Speed Boost"
-                description="Enable parallel downloads for faster transfers"
+                description="Enable parallel chunk downloads for faster transfers"
                 enabled={settings.speedBoost}
                 onToggle={() => setSettings({ speedBoost: !settings.speedBoost })}
               />
-              
               <SettingSlider
                 icon={Download}
                 label="Parallel Downloads"
@@ -54,11 +55,10 @@ export function SettingsPanel() {
                 onChange={(v) => setSettings({ parallelDownloads: v })}
                 disabled={!settings.speedBoost}
               />
-              
               <SettingSlider
                 icon={Download}
                 label="Chunk Size"
-                description="Size of each download chunk in MB"
+                description="Download chunk size in megabytes"
                 value={Math.round(settings.chunkSize / (1024 * 1024))}
                 min={1}
                 max={16}
@@ -68,74 +68,70 @@ export function SettingsPanel() {
             </div>
           </motion.section>
 
-          {/* Appearance Section */}
+          {/* Appearance */}
           <motion.section
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="p-5 rounded-xl border"
-            style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-default)' }}
+            transition={{ duration: 0.3, delay: 0.08 }}
+            className="p-6 rounded-[20px] border border-[var(--border-default)]" style={{ background: 'var(--bg-surface)' }}
           >
-            <div className="flex items-center gap-3 mb-4">
-              <Palette className="w-5 h-5" style={{ color: 'var(--accent-secondary)' }} />
-              <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Appearance</h3>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.1)' }}>
+                <Palette className="w-4.5 h-4.5" style={{ color: 'var(--accent-secondary)' }} />
+              </div>
+              <h3 className="text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}>Appearance</h3>
             </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium block mb-2" style={{ color: 'var(--text-secondary)' }}>Theme</label>
-                <div className="flex gap-2">
-                  {(['dark', 'light', 'system'] as const).map((theme) => (
-                    <button
-                      key={theme}
-                      onClick={() => setSettings({ theme })}
-                      className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium capitalize transition-all ${
-                        settings.theme === theme
-                          ? 'bg-[var(--accent)] text-white'
-                          : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                      }`}
-                    >
-                      {theme}
-                    </button>
-                  ))}
-                </div>
+            <div>
+              <label className="text-sm font-bold block mb-3" style={{ color: 'var(--text-secondary)' }}>Theme</label>
+              <div className="flex gap-2">
+                {(['dark', 'light', 'system'] as const).map((theme) => (
+                  <button
+                    key={theme}
+                    onClick={() => setSettings({ theme })}
+                    className={`flex-1 px-4 py-3 rounded-xl text-sm font-extrabold capitalize transition-all ${
+                      settings.theme === theme
+                        ? 'bg-[var(--accent)] text-white shadow-md shadow-[var(--accent-muted)]'
+                        : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] border border-[var(--border-default)]'
+                    }`}
+                  >
+                    {theme}
+                  </button>
+                ))}
               </div>
             </div>
           </motion.section>
 
-          {/* General Section */}
+          {/* General */}
           <motion.section
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="p-5 rounded-xl border"
-            style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-default)' }}
+            transition={{ duration: 0.3, delay: 0.16 }}
+            className="p-6 rounded-[20px] border border-[var(--border-default)]" style={{ background: 'var(--bg-surface)' }}
           >
-            <div className="flex items-center gap-3 mb-4">
-              <RefreshCw className="w-5 h-5" style={{ color: 'var(--success)' }} />
-              <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>General</h3>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(34,197,94,0.1)' }}>
+                <RefreshCw className="w-4.5 h-4.5" style={{ color: 'var(--success)' }} />
+              </div>
+              <h3 className="text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}>General</h3>
             </div>
-            
             <SettingToggle
               icon={RefreshCw}
               label="Auto Refresh"
-              description="Automatically refresh file list when changes are detected"
+              description="Automatically refresh the file list when changes are detected"
               enabled={settings.autoRefresh}
               onToggle={() => setSettings({ autoRefresh: !settings.autoRefresh })}
             />
           </motion.section>
 
-          {/* Info Card */}
+          {/* Note */}
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="p-4 rounded-xl"
-            style={{ background: 'var(--info-muted)', border: '1px solid var(--border-default)' }}
+            transition={{ duration: 0.3, delay: 0.24 }}
+            className="p-4 rounded-2xl border" style={{ background: 'rgba(56,189,248,0.05)', borderColor: 'rgba(56,189,248,0.15)' }}
           >
-            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              <strong style={{ color: 'var(--info)' }}>Note:</strong> Some settings may require a page refresh to take effect. 
-              Changes are automatically saved to your browser's local storage.
+            <p className="text-xs leading-relaxed font-medium" style={{ color: 'var(--text-secondary)' }}>
+              <strong style={{ color: 'var(--info)' }}>Note:</strong> Settings are saved automatically to your browser. Speed boost works best with files larger than 20MB.
             </p>
           </motion.div>
         </div>
@@ -156,23 +152,21 @@ function SettingToggle({ icon: Icon, label, description, enabled, onToggle }: Se
   return (
     <div className="flex items-center justify-between py-2">
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'var(--bg-elevated)' }}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--bg-elevated)' }}>
           <Icon className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
         </div>
         <div>
-          <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{label}</p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{description}</p>
+          <p className="text-sm font-extrabold" style={{ color: 'var(--text-primary)' }}>{label}</p>
+          <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--text-muted)' }}>{description}</p>
         </div>
       </div>
       <button
         onClick={onToggle}
-        className={`relative w-11 h-6 rounded-full transition-colors ${
-          enabled ? 'bg-[var(--accent)]' : 'bg-[var(--bg-elevated)]'
-        }`}
+        className={`relative w-11 h-6 rounded-full transition-colors duration-150 ${enabled ? 'bg-[var(--accent)]' : 'bg-[var(--bg-elevated)] border border-[var(--border-default)]'}`}
       >
         <motion.div
-          animate={{ x: enabled ? 20 : 2 }}
-          transition={{ duration: 0.2 }}
+          animate={{ x: enabled ? 22 : 3 }}
+          transition={{ duration: 0.15 }}
           className="absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm"
         />
       </button>
@@ -193,18 +187,18 @@ interface SettingSliderProps {
 
 function SettingSlider({ icon: Icon, label, description, value, min, max, onChange, disabled }: SettingSliderProps) {
   return (
-    <div className={`py-2 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
+    <div className={`py-2 ${disabled ? 'opacity-40 pointer-events-none' : ''}`}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'var(--bg-elevated)' }}>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--bg-elevated)' }}>
             <Icon className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
           </div>
           <div>
-            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{label}</p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{description}</p>
+            <p className="text-sm font-extrabold" style={{ color: 'var(--text-primary)' }}>{label}</p>
+            <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--text-muted)' }}>{description}</p>
           </div>
         </div>
-        <span className="text-sm font-semibold px-3 py-1 rounded-lg" style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>
+        <span className="text-sm font-extrabold px-3 py-1 rounded-lg" style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>
           {value}
         </span>
       </div>
@@ -214,7 +208,7 @@ function SettingSlider({ icon: Icon, label, description, value, min, max, onChan
         max={max}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-[var(--accent)]"
+        className="w-full h-2 rounded-full appearance-none cursor-pointer bg-[var(--bg-elevated)] accent-[var(--accent)]"
       />
     </div>
   );

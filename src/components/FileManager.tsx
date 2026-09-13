@@ -140,9 +140,7 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
   const handleCancelTransfer = (transferId: string) => {
     const transfer = transfers.find(t => t.id === transferId);
     if (transfer) {
-      if (transfer.abortController) {
-        transfer.abortController.abort();
-      }
+      if (transfer.abortController) transfer.abortController.abort();
       updateTransfer(transferId, { status: 'cancelled' });
     }
   };
@@ -150,56 +148,31 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
   const handlePinFolder = (folder: FileItem) => {
     const folderPath = folder.path === '/' ? `/${folder.name}` : `${folder.path}/${folder.name}`;
     const isPinned = pinnedFolders.some(f => f.path === folderPath);
-    if (isPinned) {
-      unpinFolder(folderPath);
-    } else {
-      pinFolder(folderPath, folder.name);
-    }
+    if (isPinned) unpinFolder(folderPath);
+    else pinFolder(folderPath, folder.name);
   };
 
   const handleMove = async (destinationPath: string) => {
     if (!fileToMove) return;
-    
     try {
-      console.log('[FileManager] Moving file to:', destinationPath);
-      
-      // Get the message to update
       const messages = await mtprotoService.getMessages(chat.id, 100, chat.inputPeer);
       const message = messages.find((m: any) => m.id === fileToMove.telegramMessageId);
-      
       if (!message) {
         console.error('[FileManager] Message not found for move');
         return;
       }
-
-      // Extract current metadata
       const caption = message.message || message.text || '';
       if (!caption.startsWith('__TCLOUD_V1__')) {
         console.error('[FileManager] Invalid metadata format');
         return;
       }
-
       const jsonStr = caption.substring('__TCLOUD_V1__'.length);
       const metadata = JSON.parse(jsonStr);
-
-      // Update the path in metadata
       metadata.path = destinationPath;
       metadata.modifiedAt = Date.now();
-
-      // Create new caption with updated metadata
       const newCaption = `__TCLOUD_V1__${JSON.stringify(metadata)}`;
-
-      console.log('[FileManager] Updating message caption...');
-      
-      // Update the message with new caption
       await mtprotoService.editMessageCaption(chat.inputPeer, message.id, newCaption);
-
-      console.log('[FileManager] File moved successfully');
-
-      // Reload the file list
       await loadChatHistory();
-
-      // Close the dialog
       setShowMoveDialog(false);
       setFileToMove(null);
     } catch (error) {
@@ -209,11 +182,7 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;
-    
     try {
-      console.log('[FileManager] Creating folder:', newFolderName, 'in', currentPath);
-      
-      // Create the folder metadata
       const metadata = {
         name: newFolderName.trim(),
         path: currentPath,
@@ -223,14 +192,8 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
         createdAt: Date.now(),
         isFolder: true,
       };
-      
-      // Create a caption for the folder message
       const caption = `__TCLOUD_V1__${JSON.stringify(metadata)}`;
-      
-      // Send the folder message to Telegram
       await mtprotoService.sendMessage(chat.id, caption);
-      
-      // Create the folder item
       const folder: FileItem = {
         id: `folder-${Date.now()}`,
         name: newFolderName.trim(),
@@ -242,17 +205,9 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
         createdAt: Date.now(),
         modifiedAt: Date.now(),
       };
-      
-      // Add to files list
       setFiles([...files, folder]);
-      
-      console.log('[FileManager] Folder created successfully');
-      
-      // Close the dialog and reset
       setShowNewFolderDialog(false);
       setNewFolderName('');
-      
-      // Reload chat history to get the new folder
       await loadChatHistory();
     } catch (error) {
       console.error('[FileManager] Failed to create folder:', error);
@@ -282,16 +237,12 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
   const regularFiles = currentFiles.filter(f => f.type === 'file');
   const pathParts = currentPath.split('/').filter(Boolean);
 
-  // Search filtering
   const filteredFolders = searchQuery
     ? folders.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
     : folders;
-  
+
   const filteredFiles = searchQuery
-    ? files.filter(f => 
-        f.type === 'file' && 
-        f.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+    ? files.filter(f => f.type === 'file' && f.name.toLowerCase().includes(searchQuery.toLowerCase()))
     : regularFiles;
 
   useEffect(() => {
@@ -306,44 +257,44 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
 
   if (isLoadingHistory) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-base">
+      <div className="flex-1 flex items-center justify-center" style={{ background: 'var(--bg-base)' }}>
         <div className="text-center">
-          <div className="w-10 h-10 mx-auto mb-3 rounded-lg flex items-center justify-center bg-elevated">
-            <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin border-accent" />
+          <div className="w-10 h-10 mx-auto mb-4 rounded-xl flex items-center justify-center" style={{ background: 'var(--bg-elevated)' }}>
+            <div className="w-4 h-4 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
           </div>
-          <p className="text-sm text-muted">Loading files...</p>
+          <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Loading files...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-base">
+    <div className="flex-1 flex flex-col overflow-hidden" style={{ background: 'var(--bg-base)' }}>
       {/* Header */}
-      <header className="bg-surface border-b border-default px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-primary">Files</h2>
-            <p className="text-sm text-muted mt-1">Manage your cloud files</p>
+      <header className="px-6 py-5 border-b border-[var(--border-default)]" style={{ background: 'var(--bg-surface)' }}>
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-2xl font-extrabold tracking-tight truncate" style={{ color: 'var(--text-primary)' }}>Files</h2>
+            <p className="text-sm font-medium truncate" style={{ color: 'var(--text-muted)' }}>{chat.title || 'Cloud Storage'}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <div className="relative">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search files..."
-                className="pl-10 pr-4 py-2 bg-elevated border border-default rounded-lg text-primary placeholder-gray-500 focus:outline-none focus:border-accent w-64"
+                className="pl-9 pr-4 py-2 bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-xl text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[rgba(99,102,241,0.1)] w-52 transition-all"
               />
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
-            <button onClick={() => fileInputRef.current?.click()} className="btn btn-primary">
+            <button onClick={() => fileInputRef.current?.click()} className="btn btn-primary rounded-xl px-4 text-sm font-semibold shadow-md shadow-[var(--accent-muted)]">
               <Upload className="w-4 h-4" /> Upload
             </button>
-            <button onClick={() => setShowNewFolderDialog(true)} className="btn btn-secondary">
-              <FolderPlus className="w-4 h-4" /> New Folder
+            <button onClick={() => setShowNewFolderDialog(true)} className="btn btn-secondary rounded-xl px-4 text-sm font-semibold">
+              <FolderPlus className="w-4 h-4" /> Folder
             </button>
             <input ref={fileInputRef} type="file" multiple onChange={handleUpload} className="hidden" />
           </div>
@@ -351,18 +302,13 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
       </header>
 
       {/* Breadcrumb */}
-      <div className="bg-surface border-b border-default px-6 py-2">
-        <div className="flex items-center gap-2 text-sm">
-          <button onClick={() => setCurrentPath('/')} className="text-muted hover:text-primary transition-colors">
-            Home
-          </button>
+      <div className="px-6 py-2.5 border-b border-[var(--border-default)]" style={{ background: 'var(--bg-base)' }}>
+        <div className="flex items-center gap-1.5 text-xs font-semibold overflow-hidden">
+          <button onClick={() => setCurrentPath('/')} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors whitespace-nowrap">Home</button>
           {pathParts.map((part, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <span className="text-muted">/</span>
-              <button
-                onClick={() => navigateToPath(index)}
-                className="text-muted hover:text-primary transition-colors"
-              >
+            <div key={index} className="flex items-center gap-1.5">
+              <span className="text-[var(--text-disabled)]">/</span>
+              <button onClick={() => navigateToPath(index)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors whitespace-nowrap truncate max-w-[120px]">
                 {part}
               </button>
             </div>
@@ -374,14 +320,12 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
       <div className="flex-1 overflow-auto p-6">
         {filteredFolders.length === 0 && filteredFiles.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <div className="text-center text-muted">
-              <p className="text-lg mb-2">
+            <div className="text-center">
+              <p className="text-lg font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>
                 {searchQuery ? 'No files found' : 'No files yet'}
               </p>
-              <p className="text-sm">
-                {searchQuery 
-                  ? 'Try a different search term' 
-                  : 'Upload files or create a folder to get started'}
+              <p className="text-sm font-medium" style={{ color: 'var(--text-disabled)' }}>
+                {searchQuery ? 'Try a different search term' : 'Upload files or create a folder to get started'}
               </p>
             </div>
           </div>
@@ -392,20 +336,20 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
                 key={folder.id}
                 onClick={() => navigateToFolder(folder.name)}
                 onContextMenu={(e) => { e.preventDefault(); setContextMenu({ item: folder, x: e.clientX, y: e.clientY }); }}
-                className="bg-surface border border-default rounded-lg p-4 cursor-pointer hover:bg-elevated hover:border-hover transition-colors group relative"
+                className="surface-card rounded-2xl p-4 cursor-pointer hover:border-[var(--accent)]/30 hover:-translate-y-0.5 transition-all group relative"
               >
                 <div className="flex items-center justify-center mb-3">
-                  <Folder className="w-12 h-12 text-accent" />
+                  <Folder className="w-12 h-12" style={{ color: 'var(--accent)' }} />
                 </div>
-                <p className="text-sm text-primary text-center truncate">{folder.name}</p>
+                <p className="text-sm font-bold text-center truncate" style={{ color: 'var(--text-primary)' }}>{folder.name}</p>
                 <button
                   onClick={(e) => { e.stopPropagation(); handlePinFolder(folder); }}
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-[var(--bg-hover)]"
                 >
                   {pinnedFolders.some(f => f.path === (folder.path === '/' ? `/${folder.name}` : `${folder.path}/${folder.name}`)) ? (
-                    <PinOff className="w-4 h-4 text-accent" />
+                    <PinOff className="w-3.5 h-3.5" style={{ color: 'var(--accent)' }} />
                   ) : (
-                    <Pin className="w-4 h-4 text-muted hover:text-accent transition-colors" />
+                    <Pin className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
                   )}
                 </button>
               </div>
@@ -416,18 +360,18 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
                 <div
                   key={file.id}
                   onContextMenu={(e) => { e.preventDefault(); setContextMenu({ item: file, x: e.clientX, y: e.clientY }); }}
-                  className="bg-surface border border-default rounded-lg p-4 cursor-pointer hover:bg-elevated hover:border-hover transition-colors group relative"
+                  className="surface-card rounded-2xl p-4 cursor-pointer hover:border-[var(--accent)]/30 hover:-translate-y-0.5 transition-all group relative"
                 >
                   <div className="flex items-center justify-center mb-3">
-                    <Icon className="w-12 h-12 text-accent-secondary" />
+                    <Icon className="w-12 h-12" style={{ color: 'var(--accent-secondary)' }} />
                   </div>
-                  <p className="text-sm text-primary text-center truncate">{file.name}</p>
-                  <p className="text-xs text-muted text-center mt-1">{formatFileSize(file.size)}</p>
+                  <p className="text-sm font-bold text-center truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
+                  <p className="text-[11px] font-medium text-center mt-1" style={{ color: 'var(--text-muted)' }}>{formatFileSize(file.size)}</p>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDownload(file); }}
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-[var(--bg-hover)]"
                   >
-                    <Download className="w-4 h-4 text-muted hover:text-accent transition-colors" />
+                    <Download className="w-3.5 h-3.5" style={{ color: 'var(--text-secondary)' }} />
                   </button>
                 </div>
               );
@@ -441,21 +385,18 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
         <div
           ref={menuRef}
           style={{ position: 'fixed', top: contextMenu.y, left: contextMenu.x }}
-          className="bg-surface border border-default rounded-lg shadow-lg p-2 z-50"
+          className="surface-card rounded-xl shadow-2xl shadow-black/40 p-1.5 z-50 min-w-[160px] border border-[var(--border-default)]"
         >
           {contextMenu.item.type === 'folder' && (
             <button
-                onClick={() => { handlePinFolder(contextMenu.item); setContextMenu(null); }}
-                className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-elevated rounded transition-colors flex items-center gap-2"
-              >
-                {pinnedFolders.some(f => f.path === (contextMenu.item.path === '/' ? `/${contextMenu.item.name}` : `${contextMenu.item.path}/${contextMenu.item.name}`)) ? (
-                  <>
-                  <PinOff className="w-4 h-4" /> Unpin
-                </>
+              onClick={() => { handlePinFolder(contextMenu.item); setContextMenu(null); }}
+              className="w-full px-3 py-2 text-left text-xs font-semibold rounded-lg hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              {pinnedFolders.some(f => f.path === (contextMenu.item.path === '/' ? `/${contextMenu.item.name}` : `${contextMenu.item.path}/${contextMenu.item.name}`)) ? (
+                <><PinOff className="w-3.5 h-3.5" /> Unpin</>
               ) : (
-                <>
-                  <Pin className="w-4 h-4" /> Pin to Sidebar
-                </>
+                <><Pin className="w-3.5 h-3.5" /> Pin to Sidebar</>
               )}
             </button>
           )}
@@ -463,9 +404,10 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
             <>
               <button
                 onClick={() => { handleDownload(contextMenu.item); setContextMenu(null); }}
-                className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-elevated rounded transition-colors flex items-center gap-2"
+                className="w-full px-3 py-2 text-left text-xs font-semibold rounded-lg hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2"
+                style={{ color: 'var(--text-primary)' }}
               >
-                <Download className="w-4 h-4" /> Download
+                <Download className="w-3.5 h-3.5" /> Download
               </button>
               <button
                 onClick={() => {
@@ -473,10 +415,10 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
                   setShowMoveDialog(true);
                   setContextMenu(null);
                 }}
-                className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-elevated rounded transition-colors flex items-center gap-2"
+                className="w-full px-3 py-2 text-left text-xs font-semibold rounded-lg hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2"
+                style={{ color: 'var(--text-primary)' }}
               >
-                <FolderInput className="w-4 h-4" />
-                Move to...
+                <FolderInput className="w-3.5 h-3.5" /> Move to...
               </button>
             </>
           )}
@@ -485,36 +427,20 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
 
       {/* New Folder Dialog */}
       {showNewFolderDialog && (
-        <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          onClick={() => { setShowNewFolderDialog(false); setNewFolderName(''); }}
-        >
-          <div 
-            className="bg-surface border border-default rounded-lg p-6 max-w-md w-full mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-bold text-primary mb-4">Create New Folder</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(10,10,12,0.6)' }} onClick={() => { setShowNewFolderDialog(false); setNewFolderName(''); }}>
+          <div className="surface-card rounded-3xl p-6 max-w-md w-full mx-4 shadow-2xl shadow-black/40" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-extrabold mb-5" style={{ color: 'var(--text-primary)' }}>Create Folder</h3>
             <input
               type="text"
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
               placeholder="Folder name"
-              className="input mb-4"
+              className="input mb-5 rounded-xl py-3"
               autoFocus
             />
-            <div className="flex gap-2">
-              <button
-                onClick={() => { setShowNewFolderDialog(false); setNewFolderName(''); }}
-                className="btn btn-secondary flex-1"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateFolder}
-                className="btn btn-primary flex-1"
-              >
-                Create
-              </button>
+            <div className="flex gap-3">
+              <button onClick={() => { setShowNewFolderDialog(false); setNewFolderName(''); }} className="btn btn-secondary flex-1 rounded-xl py-2.5 text-sm font-semibold">Cancel</button>
+              <button onClick={handleCreateFolder} className="btn btn-primary flex-1 rounded-xl py-2.5 text-sm font-semibold shadow-md shadow-[var(--accent-muted)]">Create</button>
             </div>
           </div>
         </div>
@@ -522,55 +448,31 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
 
       {/* Move Dialog */}
       {showMoveDialog && fileToMove && (
-        <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          onClick={() => {
- setShowMoveDialog(false); setFileToMove(null);
- }}
-        >
-          <div 
-            className="bg-surface border border-default rounded-lg p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-bold text-primary mb-4">Move "{fileToMove.name}" to...</h3>
-            <div className="space-y-2 mb-4">
-              {/* Root option */}
-              <button
-                onClick={() => {
-                  handleMove('/');
-                }}
-                className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-elevated rounded transition-colors flex items-center gap-2"
-              >
-                <Folder className="w-4 h-4" />
-                Root (/)
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(10,10,12,0.6)' }} onClick={() => { setShowMoveDialog(false); setFileToMove(null); }}>
+          <div className="surface-card rounded-3xl p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto shadow-2xl shadow-black/40" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-extrabold mb-4" style={{ color: 'var(--text-primary)' }}>Move "{fileToMove.name}"</h3>
+            <div className="space-y-1 mb-5">
+              <button onClick={() => handleMove('/')} className="w-full px-3 py-2.5 text-left text-sm font-semibold rounded-xl hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2.5" style={{ color: 'var(--text-primary)' }}>
+                <Folder className="w-4 h-4" style={{ color: 'var(--accent)' }} /> Root (/)
               </button>
-              {/* All folders */}
               {files.filter(f => f.type === 'folder').map((folder) => {
                 const folderPath = folder.path === '/' ? `/${folder.name}` : `${folder.path}/${folder.name}`;
                 return (
                   <button
                     key={folder.id}
-                    onClick={() => {
-                      handleMove(folderPath);
-                    }}
-                    className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-elevated rounded transition-colors flex items-center gap-2"
+                    onClick={() => handleMove(folderPath)}
+                    className="w-full px-3 py-2.5 text-left text-sm font-semibold rounded-xl hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2.5"
+                    style={{ color: 'var(--text-primary)' }}
                   >
-                    <Folder className="w-4 h-4" />
-                    {folderPath}
+                    <Folder className="w-4 h-4" style={{ color: 'var(--accent)' }} /> {folderPath}
                   </button>
                 );
               })}
             </div>
-            <button
-              onClick={() => { setShowMoveDialog(false); setFileToMove(null); }}
-              className="btn btn-secondary w-full"
-            >
-              Cancel
-            </button>
+            <button onClick={() => { setShowMoveDialog(false); setFileToMove(null); }} className="btn btn-secondary w-full rounded-xl py-2.5 text-sm font-semibold">Cancel</button>
           </div>
         </div>
       )}
-
     </div>
   );
 }

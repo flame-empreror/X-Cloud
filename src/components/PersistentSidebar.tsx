@@ -34,7 +34,7 @@ export default function PersistentSidebar({ activeTab, onTabChange, onFolderClic
   };
 
   return (
-    <div className="w-64 h-full glass flex flex-col" style={{ borderRight: '1px solid var(--border)' }}>
+    <div className="w-64 h-full flex flex-col" style={{ borderRight: '1px solid var(--border-default)', background: 'var(--bg-surface)' }}>
       {/* Logo */}
       <div className="p-5 pb-4">
         <div className="flex items-center gap-3">
@@ -51,7 +51,7 @@ export default function PersistentSidebar({ activeTab, onTabChange, onFolderClic
       {/* Channel Info */}
       {selectedChannel && (
         <div className="px-5 pb-5">
-          <div className="card p-4 flex items-center gap-3">
+            <div className="surface-card p-4 flex items-center gap-3 rounded-2xl border border-[var(--border-default)]">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent-muted)' }}>
               <HardDrive className="w-5 h-5" style={{ color: 'var(--accent)' }} />
             </div>
@@ -91,7 +91,7 @@ export default function PersistentSidebar({ activeTab, onTabChange, onFolderClic
         
         {/* Transfers Section - Expands when there are active transfers */}
         <div className="mt-2">
-          <div className="card overflow-hidden">
+          <div className="surface-card overflow-hidden rounded-2xl border border-[var(--border-default)]">
             <button
               onClick={() => activeTransfers.length > 0 && setShowAllTransfers(!showAllTransfers)}
               className={`w-full flex items-center justify-between px-4 py-3 transition-all ${
@@ -230,7 +230,7 @@ export default function PersistentSidebar({ activeTab, onTabChange, onFolderClic
       {/* Speed Boost Indicator */}
       {settings.speedBoost && (
         <div className="px-5 mb-4">
-          <div className="card p-4 flex items-center gap-3" style={{ borderColor: 'var(--border)' }}>
+          <div className="surface-card p-4 flex items-center gap-3 rounded-2xl border border-[var(--border-default)]">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-muted)' }}>
               <svg className="w-4 h-4" style={{ color: 'var(--accent)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
