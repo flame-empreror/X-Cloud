@@ -7,8 +7,8 @@ import LoginScreenMTProto from './components/LoginScreenMTProto';
 import ChannelSelect from './components/ChannelSelect';
 import { FileManager } from './components/FileManager';
 import Sidebar from './components/Sidebar';
-import TransfersPanel from './components/TransfersPanel';
-import SettingsPanel from './components/SettingsPanel';
+import { TransfersPanel } from './components/TransfersPanel';
+import { SettingsPanel } from './components/SettingsPanel';
 import MediaViewer from './components/MediaViewer';
 import { FileItem, TelegramChat } from './types';
 
