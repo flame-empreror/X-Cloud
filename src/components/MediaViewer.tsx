@@ -37,7 +37,7 @@ export default function MediaViewer({ file, chatId, onClose, files, onNavigate }
       const messages = await mtprotoService.getMessages(chatId, 100);
       const message = messages.find((m: any) => m.id === fileItem.telegramMessageId);
       if (!message || !message.media) throw new Error('Media not found');
-      const blob = await mtprotoService.downloadMedia(message.media);
+      const blob = await mtprotoService.downloadMedia(message);
       const url = URL.createObjectURL(blob);
       setMediaUrl(url);
     } catch (error) {
@@ -58,7 +58,7 @@ export default function MediaViewer({ file, chatId, onClose, files, onNavigate }
       const messages = await mtprotoService.getMessages(chatId, 100);
       const message = messages.find((m: any) => m.id === file.telegramMessageId);
       if (!message || !message.media) throw new Error('File not found');
-      const blob = await mtprotoService.downloadMedia(message.media);
+      const blob = await mtprotoService.downloadMedia(message);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = file.name;

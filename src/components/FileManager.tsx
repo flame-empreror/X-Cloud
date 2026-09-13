@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Upload, FolderPlus, Folder, Pin, PinOff, Download, FolderInput } from 'lucide-react';
+import { Upload, FolderPlus, Folder, Pin, PinOff, Download, FolderInput, ImageIcon, FileText, Music, Video, Play } from 'lucide-react';
 import { mtprotoService } from '../services/mtproto';
 import { FileItem, TransferItem, TelegramChat } from '../types';
-import { formatFileSize, getFileIconComponent } from '../utils/fileUtils';
+import { formatFileSize, getFileIconComponent, isImageFile, isVideoFile, isAudioFile } from '../utils/fileUtils';
 import { useAppStore } from '../store/index';
 
 interface FileManagerProps {
@@ -14,9 +14,10 @@ interface FileManagerProps {
   onLogout: () => void;
   currentPath: string;
   setCurrentPath: (path: string) => void;
+  onPreviewMedia?: (file: FileItem) => void;
 }
 
-export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath, sidebarOpen, onToggleSidebar }: FileManagerProps) {
+export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath, sidebarOpen, onToggleSidebar, onPreviewMedia }: FileManagerProps) {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -46,7 +47,7 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
             if (msg.media && msg.media._ === 'messageMediaDocument') {
               fileId = msg.media.document?.id?.toString();
             }
-            const fileItem: FileItem = {
+            loadedFiles.push({
               id: msg.id.toString(),
               name: metadata.name || 'Unknown',
               path: metadata.path || '/',
@@ -58,13 +59,12 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
               telegramFileId: fileId,
               createdAt: metadata.createdAt || (msg.date ? msg.date * 1000 : Date.now()),
               modifiedAt: msg.date ? msg.date * 1000 : Date.now(),
-            };
-            loadedFiles.push(fileItem);
-          } catch (e) { /* skip */ }
+            });
+          } catch (e) { /* skip bad messages */ }
         }
       }
       setFiles(loadedFiles);
-    } catch (error) { console.error('[FileManager] Failed to load history:', error); }
+    } catch (err) { console.error('Failed to load chat history:', err); }
     finally { setIsLoadingHistory(false); }
   };
 
@@ -75,30 +75,16 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
       const file = fileList[i];
       const transferId = `upload-${Date.now()}-${i}`;
       const abortController = new AbortController();
-      const transfer: TransferItem = {
-        id: transferId, fileName: file.name, type: 'upload',
-        progress: 0, status: 'active', size: file.size, transferred: 0, path: currentPath,
-        abortController,
-      };
-      addTransfer(transfer);
+      addTransfer({ id: transferId, fileName: file.name, type: 'upload', progress: 0, status: 'active', size: file.size, transferred: 0, path: currentPath, abortController });
       try {
-        const metadata = {
-          name: file.name, path: currentPath, size: file.size,
-          mimeType: file.type, extension: file.name.split('.').pop() || '', createdAt: Date.now(),
-        };
+        const metadata = { name: file.name, path: currentPath, size: file.size, mimeType: file.type, extension: file.name.split('.').pop() || '', createdAt: Date.now(), isFolder: false };
         const caption = `__TCLOUD_V1__${JSON.stringify(metadata)}`;
-        await mtprotoService.sendFile(chat.id, file, caption, (progress) => {
-          updateTransfer(transferId, { progress, transferred: Math.round(file.size * progress / 100) });
-        }, abortController.signal);
+        await mtprotoService.sendFile(chat.id, file, caption, (p) => updateTransfer(transferId, { progress: p, transferred: Math.round(file.size * p / 100) }), abortController.signal);
         updateTransfer(transferId, { status: 'completed', progress: 100 });
         await loadChatHistory();
-      } catch (error: any) {
-        if (error.name === 'AbortError') {
-          updateTransfer(transferId, { status: 'cancelled' });
-        } else {
-          console.error('[FileManager] Upload failed:', error);
-          updateTransfer(transferId, { status: 'error', error: 'Upload failed' });
-        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') updateTransfer(transferId, { status: 'cancelled' });
+        else { console.error('Upload failed:', err); updateTransfer(transferId, { status: 'error', error: 'Upload failed' }); }
       }
     }
     e.target.value = '';
@@ -108,40 +94,21 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
     if (!file.telegramMessageId) return;
     const transferId = `download-${Date.now()}`;
     const abortController = new AbortController();
-    const transfer: TransferItem = {
-      id: transferId, fileName: file.name, type: 'download',
-      progress: 0, status: 'active', size: file.size, transferred: 0, path: file.path,
-      abortController,
-    };
-    addTransfer(transfer);
+    addTransfer({ id: transferId, fileName: file.name, type: 'download', progress: 0, status: 'active', size: file.size, transferred: 0, path: file.path, abortController });
     try {
       const messages = await mtprotoService.getMessages(chat.id, 100, chat.inputPeer);
       const message = messages.find((m: any) => m.id === file.telegramMessageId);
-      if (!message || !message.media) throw new Error('File not found');
-      const blob = await mtprotoService.downloadMedia(message, (progress) => {
-        updateTransfer(transferId, { progress, transferred: Math.round(file.size * progress / 100) });
-      }, abortController.signal);
+      if (!message || !message.media) throw new Error('Message not found');
+      const blob = await mtprotoService.downloadMedia(message, (p) => updateTransfer(transferId, { progress: p, transferred: Math.round(file.size * p / 100) }), abortController.signal);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = file.name;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(url);
       updateTransfer(transferId, { status: 'completed', progress: 100 });
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
-        updateTransfer(transferId, { status: 'cancelled' });
-      } else {
-        console.error('[FileManager] Download failed:', error);
-        updateTransfer(transferId, { status: 'error', error: 'Download failed' });
-      }
-    }
-  };
-
-  const handleCancelTransfer = (transferId: string) => {
-    const transfer = transfers.find(t => t.id === transferId);
-    if (transfer) {
-      if (transfer.abortController) transfer.abortController.abort();
-      updateTransfer(transferId, { status: 'cancelled' });
+    } catch (err: any) {
+      if (err.name === 'AbortError') updateTransfer(transferId, { status: 'cancelled' });
+      else { console.error('Download failed:', err); updateTransfer(transferId, { status: 'error', error: 'Download failed' }); }
     }
   };
 
@@ -152,115 +119,64 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
     else pinFolder(folderPath, folder.name);
   };
 
-  const handleMove = async (destinationPath: string) => {
+  const handleMove = async (destPath: string) => {
     if (!fileToMove) return;
     try {
       const messages = await mtprotoService.getMessages(chat.id, 100, chat.inputPeer);
       const message = messages.find((m: any) => m.id === fileToMove.telegramMessageId);
-      if (!message) {
-        console.error('[FileManager] Message not found for move');
-        return;
-      }
+      if (!message) return;
       const caption = message.message || message.text || '';
-      if (!caption.startsWith('__TCLOUD_V1__')) {
-        console.error('[FileManager] Invalid metadata format');
-        return;
-      }
-      const jsonStr = caption.substring('__TCLOUD_V1__'.length);
-      const metadata = JSON.parse(jsonStr);
-      metadata.path = destinationPath;
-      metadata.modifiedAt = Date.now();
-      const newCaption = `__TCLOUD_V1__${JSON.stringify(metadata)}`;
-      await mtprotoService.editMessageCaption(chat.inputPeer, message.id, newCaption);
+      if (!caption.startsWith('__TCLOUD_V1__')) return;
+      const metadata = JSON.parse(caption.substring('__TCLOUD_V1__'.length));
+      metadata.path = destPath; metadata.modifiedAt = Date.now();
+      await mtprotoService.editMessageCaption(chat.inputPeer, message.id, `__TCLOUD_V1__${JSON.stringify(metadata)}`);
       await loadChatHistory();
-      setShowMoveDialog(false);
-      setFileToMove(null);
-    } catch (error) {
-      console.error('[FileManager] Failed to move file:', error);
-    }
+      setShowMoveDialog(false); setFileToMove(null);
+    } catch (err) { console.error('Move failed:', err); }
   };
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;
     try {
-      const metadata = {
-        name: newFolderName.trim(),
-        path: currentPath,
-        size: 0,
-        mimeType: 'folder',
-        extension: '',
-        createdAt: Date.now(),
-        isFolder: true,
-      };
-      const caption = `__TCLOUD_V1__${JSON.stringify(metadata)}`;
-      await mtprotoService.sendMessage(chat.id, caption);
-      const folder: FileItem = {
-        id: `folder-${Date.now()}`,
-        name: newFolderName.trim(),
-        path: currentPath,
-        size: 0,
-        type: 'folder',
-        mimeType: 'folder',
-        extension: '',
-        createdAt: Date.now(),
-        modifiedAt: Date.now(),
-      };
-      setFiles([...files, folder]);
-      setShowNewFolderDialog(false);
-      setNewFolderName('');
+      const metadata = { name: newFolderName.trim(), path: currentPath, size: 0, mimeType: 'folder', extension: '', createdAt: Date.now(), isFolder: true };
+      await mtprotoService.sendMessage(chat.id, `__TCLOUD_V1__${JSON.stringify(metadata)}`);
+      setFiles([...files, { id: `folder-${Date.now()}`, name: newFolderName.trim(), path: currentPath, size: 0, type: 'folder', mimeType: 'folder', extension: '', createdAt: Date.now(), modifiedAt: Date.now() }]);
+      setShowNewFolderDialog(false); setNewFolderName('');
       await loadChatHistory();
-    } catch (error) {
-      console.error('[FileManager] Failed to create folder:', error);
-    }
+    } catch (err) { console.error('Create folder failed:', err); }
   };
 
-  const navigateToFolder = (folderName: string) => {
-    const newPath = currentPath === '/' ? `/${folderName}` : `${currentPath}/${folderName}`;
-    setCurrentPath(newPath);
-  };
-
-  const navigateUp = () => {
-    if (currentPath === '/') return;
-    const parts = currentPath.split('/').filter(Boolean);
-    parts.pop();
-    setCurrentPath(parts.length === 0 ? '/' : '/' + parts.join('/'));
-  };
-
-  const navigateToPath = (index: number) => {
-    if (index === -1) { setCurrentPath('/'); return; }
-    const parts = currentPath.split('/').filter(Boolean);
-    setCurrentPath('/' + parts.slice(0, index + 1).join('/'));
-  };
+  const navigateToFolder = (folderName: string) => setCurrentPath(currentPath === '/' ? `/${folderName}` : `${currentPath}/${folderName}`);
+  const navigateUp = () => { if (currentPath === '/') return; const parts = currentPath.split('/').filter(Boolean); parts.pop(); setCurrentPath(parts.length === 0 ? '/' : '/' + parts.join('/')); };
+  const navigateToPath = (index: number) => { if (index === -1) { setCurrentPath('/'); return; } const parts = currentPath.split('/').filter(Boolean); setCurrentPath('/' + parts.slice(0, index + 1).join('/')); };
 
   const currentFiles = files.filter(f => f.path === currentPath);
   const folders = currentFiles.filter(f => f.type === 'folder');
   const regularFiles = currentFiles.filter(f => f.type === 'file');
   const pathParts = currentPath.split('/').filter(Boolean);
 
-  const filteredFolders = searchQuery
-    ? folders.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    : folders;
+  const filteredFolders = searchQuery ? folders.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase())) : folders;
+  const filteredFiles = searchQuery ? files.filter(f => f.type === 'file' && f.name.toLowerCase().includes(searchQuery.toLowerCase())) : regularFiles;
 
-  const filteredFiles = searchQuery
-    ? files.filter(f => f.type === 'file' && f.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    : regularFiles;
+  const openPreview = (file: FileItem) => {
+    if (isImageFile(file.extension || '') || isVideoFile(file.extension || '') || isAudioFile(file.extension || '')) {
+      onPreviewMedia?.(file);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setContextMenu(null);
     };
-    if (contextMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
+    if (contextMenu) { document.addEventListener('mousedown', handleClickOutside); return () => document.removeEventListener('mousedown', handleClickOutside); }
   }, [contextMenu]);
 
   if (isLoadingHistory) {
     return (
       <div className="flex-1 flex items-center justify-center" style={{ background: 'var(--bg-base)' }}>
         <div className="text-center">
-          <div className="w-10 h-10 mx-auto mb-4 rounded-xl flex items-center justify-center" style={{ background: 'var(--bg-elevated)' }}>
-            <div className="w-4 h-4 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+          <div className="w-12 h-12 mx-auto mb-4 rounded-2xl flex items-center justify-center animate-pulse" style={{ background: 'var(--bg-elevated)' }}>
+            <Folder className="w-6 h-6" style={{ color: 'var(--accent)' }} />
           </div>
           <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Loading files...</p>
         </div>
@@ -269,111 +185,97 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden" style={{ background: 'var(--bg-base)' }}>
-      {/* Header */}
-      <header className="px-6 py-5 border-b border-[var(--border-default)]" style={{ background: 'var(--bg-surface)' }}>
-        <div className="flex items-center justify-between gap-4">
+    <div className="flex-1 flex flex-col overflow-hidden min-h-0" style={{ background: 'var(--bg-base)' }}>
+      {/* Clean header */}
+      <header className="px-7 py-5 border-b border-[var(--border-subtle)]" style={{ background: 'var(--bg-surface)' }}>
+        <div className="flex items-center justify-between gap-6">
           <div className="min-w-0">
-            <h2 className="text-2xl font-extrabold tracking-tight truncate" style={{ color: 'var(--text-primary)' }}>Files</h2>
-            <p className="text-sm font-medium truncate" style={{ color: 'var(--text-muted)' }}>{chat.title || 'Cloud Storage'}</p>
+            <h2 className="h2 truncate mb-0.5" style={{ color: 'var(--text-primary)' }}>Files</h2>
+            <p className="text-sm font-medium truncate" style={{ color: 'var(--text-muted)' }}>{chat.title || 'Cloud Storage'} · {currentPath === '/' ? 'Root' : currentPath}</p>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search files..."
-                className="pl-9 pr-4 py-2 bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-xl text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[rgba(99,102,241,0.1)] w-52 transition-all"
-              />
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+          <div className="flex items-center gap-2.5 flex-shrink-0">
+            <div className="relative hidden sm:block">
+              <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search..." className="input w-56 text-sm rounded-full pl-10 py-2.5 bg-[var(--bg-elevated)] border-[var(--border-default)] focus:border-[var(--accent)]" />
+              <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             </div>
-            <button onClick={() => fileInputRef.current?.click()} className="btn btn-primary rounded-xl px-4 text-sm font-semibold shadow-md shadow-[var(--accent-muted)]">
-              <Upload className="w-4 h-4" /> Upload
+            <button onClick={() => fileInputRef.current?.click()} className="btn btn-primary rounded-full px-5 py-2.5 text-xs font-extrabold shadow-md shadow-[var(--accent-glow)] tracking-wide uppercase">
+              <Upload className="w-3.5 h-3.5" /> Upload
             </button>
-            <button onClick={() => setShowNewFolderDialog(true)} className="btn btn-secondary rounded-xl px-4 text-sm font-semibold">
-              <FolderPlus className="w-4 h-4" /> Folder
+            <button onClick={() => setShowNewFolderDialog(true)} className="btn btn-secondary rounded-full px-5 py-2.5 text-xs font-extrabold tracking-wide uppercase">
+              <FolderPlus className="w-3.5 h-3.5" /> Folder
             </button>
             <input ref={fileInputRef} type="file" multiple onChange={handleUpload} className="hidden" />
           </div>
         </div>
-      </header>
 
-      {/* Breadcrumb */}
-      <div className="px-6 py-2.5 border-b border-[var(--border-default)]" style={{ background: 'var(--bg-base)' }}>
-        <div className="flex items-center gap-1.5 text-xs font-semibold overflow-hidden">
-          <button onClick={() => setCurrentPath('/')} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors whitespace-nowrap">Home</button>
-          {pathParts.map((part, index) => (
-            <div key={index} className="flex items-center gap-1.5">
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-1.5 mt-4 text-xs font-semibold overflow-hidden">
+          <button onClick={() => setCurrentPath('/')} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors whitespace-nowrap">Root</button>
+          {pathParts.map((part, i) => (
+            <div key={i} className="flex items-center gap-1.5 min-w-0">
               <span className="text-[var(--text-disabled)]">/</span>
-              <button onClick={() => navigateToPath(index)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors whitespace-nowrap truncate max-w-[120px]">
-                {part}
-              </button>
+              <button onClick={() => navigateToPath(i)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors truncate max-w-[140px] whitespace-nowrap">{part}</button>
             </div>
           ))}
-        </div>
-      </div>
+        </nav>
+      </header>
 
-      {/* File Grid */}
-      <div className="flex-1 overflow-auto p-6">
+      {/* Main content */}
+      <div className="flex-1 overflow-auto px-7 py-7">
         {filteredFolders.length === 0 && filteredFiles.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <p className="text-lg font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>
-                {searchQuery ? 'No files found' : 'No files yet'}
-              </p>
-              <p className="text-sm font-medium" style={{ color: 'var(--text-disabled)' }}>
-                {searchQuery ? 'Try a different search term' : 'Upload files or create a folder to get started'}
-              </p>
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <div className="w-20 h-20 rounded-[28px] flex items-center justify-center mb-6" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
+              <Folder className="w-9 h-9" style={{ color: 'var(--text-muted)' }} />
             </div>
+            <h3 className="h3 mb-2" style={{ color: 'var(--text-primary)' }}>{searchQuery ? 'No results' : 'Empty folder'}</h3>
+            <p className="text-sm font-medium max-w-xs" style={{ color: 'var(--text-muted)' }}>{searchQuery ? 'Try another search term' : 'Upload files or create a folder to get started'}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
             {filteredFolders.map((folder) => (
-              <div
+              <button
                 key={folder.id}
                 onClick={() => navigateToFolder(folder.name)}
-                onContextMenu={(e) => { e.preventDefault(); setContextMenu({ item: folder, x: e.clientX, y: e.clientY }); }}
-                className="surface-card rounded-2xl p-4 cursor-pointer hover:border-[var(--accent)]/30 hover:-translate-y-0.5 transition-all group relative"
+                onContextMenu={e => { e.preventDefault(); setContextMenu({ item: folder, x: e.clientX, y: e.clientY }); }}
+                className="surface-card rounded-[24px] p-6 text-center hover:-translate-y-1 transition-all duration-300 group relative overflow-hidden hover:border-[rgba(99,102,241,0.3)]"
               >
-                <div className="flex items-center justify-center mb-3">
-                  <Folder className="w-12 h-12" style={{ color: 'var(--accent)' }} />
+                <div className="flex items-center justify-center mb-4">
+                  <div className="w-14 h-14 rounded-[20px] flex items-center justify-center" style={{ background: 'var(--accent-glow)' }}>
+                    <Folder className="w-8 h-8" style={{ color: 'var(--accent)' }} />
+                  </div>
                 </div>
-                <p className="text-sm font-bold text-center truncate" style={{ color: 'var(--text-primary)' }}>{folder.name}</p>
+                <p className="text-sm font-extrabold truncate leading-tight" style={{ color: 'var(--text-primary)' }}>{folder.name}</p>
                 <button
-                  onClick={(e) => { e.stopPropagation(); handlePinFolder(folder); }}
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-[var(--bg-hover)]"
+                  onClick={e => { e.stopPropagation(); handlePinFolder(folder); }}
+                  className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-xl hover:bg-[var(--bg-hover)]"
                 >
-                  {pinnedFolders.some(f => f.path === (folder.path === '/' ? `/${folder.name}` : `${folder.path}/${folder.name}`)) ? (
-                    <PinOff className="w-3.5 h-3.5" style={{ color: 'var(--accent)' }} />
-                  ) : (
-                    <Pin className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
-                  )}
+                  {pinnedFolders.some(f => f.path === (folder.path === '/' ? `/${folder.name}` : `${folder.path}/${folder.name}`)) ? <PinOff className="w-4 h-4" style={{ color: 'var(--accent)' }} /> : <Pin className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />}
                 </button>
-              </div>
+              </button>
             ))}
             {filteredFiles.map((file) => {
               const Icon = getFileIconComponent(file.extension || '');
+              const canPreview = isImageFile(file.extension || '') || isVideoFile(file.extension || '') || isAudioFile(file.extension || '');
               return (
-                <div
+                <button
                   key={file.id}
-                  onContextMenu={(e) => { e.preventDefault(); setContextMenu({ item: file, x: e.clientX, y: e.clientY }); }}
-                  className="surface-card rounded-2xl p-4 cursor-pointer hover:border-[var(--accent)]/30 hover:-translate-y-0.5 transition-all group relative"
+                  onClick={() => canPreview ? openPreview(file) : handleDownload(file)}
+                  onContextMenu={e => { e.preventDefault(); setContextMenu({ item: file, x: e.clientX, y: e.clientY }); }}
+                  className="surface-card rounded-[24px] p-6 text-center hover:-translate-y-1 transition-all duration-300 group relative overflow-hidden hover:border-[rgba(99,102,241,0.25)] text-left"
                 >
-                  <div className="flex items-center justify-center mb-3">
-                    <Icon className="w-12 h-12" style={{ color: 'var(--accent-secondary)' }} />
+                  <div className="flex items-center justify-center mb-4">
+                    <div className="w-14 h-14 rounded-[20px] flex items-center justify-center" style={{ background: 'var(--bg-elevated)' }}>
+                      <Icon className="w-7 h-7" style={{ color: 'var(--accent-secondary)' }} />
+                    </div>
                   </div>
-                  <p className="text-sm font-bold text-center truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
-                  <p className="text-[11px] font-medium text-center mt-1" style={{ color: 'var(--text-muted)' }}>{formatFileSize(file.size)}</p>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDownload(file); }}
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-[var(--bg-hover)]"
-                  >
-                    <Download className="w-3.5 h-3.5" style={{ color: 'var(--text-secondary)' }} />
-                  </button>
-                </div>
+                  <p className="text-sm font-extrabold truncate mb-1 leading-tight" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
+                  <p className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>{formatFileSize(file.size)}</p>
+                  {canPreview && (
+                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-[var(--bg-hover)]">
+                      <Play className="w-3.5 h-3.5" style={{ color: 'var(--accent)' }} />
+                    </div>
+                  )}
+                </button>
               );
             })}
           </div>
@@ -382,65 +284,33 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
 
       {/* Context Menu */}
       {contextMenu && (
-        <div
-          ref={menuRef}
-          style={{ position: 'fixed', top: contextMenu.y, left: contextMenu.x }}
-          className="surface-card rounded-xl shadow-2xl shadow-black/40 p-1.5 z-50 min-w-[160px] border border-[var(--border-default)]"
-        >
-          {contextMenu.item.type === 'folder' && (
-            <button
-              onClick={() => { handlePinFolder(contextMenu.item); setContextMenu(null); }}
-              className="w-full px-3 py-2 text-left text-xs font-semibold rounded-lg hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              {pinnedFolders.some(f => f.path === (contextMenu.item.path === '/' ? `/${contextMenu.item.name}` : `${contextMenu.item.path}/${contextMenu.item.name}`)) ? (
-                <><PinOff className="w-3.5 h-3.5" /> Unpin</>
-              ) : (
-                <><Pin className="w-3.5 h-3.5" /> Pin to Sidebar</>
-              )}
+        <div ref={menuRef} style={{ position: 'fixed', top: contextMenu.y, left: contextMenu.x }} className="surface-card rounded-2xl shadow-2xl shadow-black/50 p-1.5 z-50 min-w-[170px] border border-[var(--border-default)]">
+          {contextMenu.item.type === 'folder' ? (
+            <button onClick={() => { handlePinFolder(contextMenu.item); setContextMenu(null); }} className="w-full px-3.5 py-2.5 text-left text-xs font-bold rounded-xl hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2.5" style={{ color: 'var(--text-primary)' }}>
+              {pinnedFolders.some(f => f.path === (contextMenu.item.path === '/' ? `/${contextMenu.item.name}` : `${contextMenu.item.path}/${contextMenu.item.name}`)) ? <><PinOff className="w-4 h-4" /> Unpin</> : <><Pin className="w-4 h-4" /> Pin to Sidebar</>}
             </button>
-          )}
-          {contextMenu.item.type === 'file' && (
+          ) : (
             <>
-              <button
-                onClick={() => { handleDownload(contextMenu.item); setContextMenu(null); }}
-                className="w-full px-3 py-2 text-left text-xs font-semibold rounded-lg hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2"
-                style={{ color: 'var(--text-primary)' }}
-              >
-                <Download className="w-3.5 h-3.5" /> Download
+              <button onClick={() => { const canP = isImageFile(contextMenu.item.extension || '') || isVideoFile(contextMenu.item.extension || '') || isAudioFile(contextMenu.item.extension || ''); if (canP) onPreviewMedia?.(contextMenu.item); else handleDownload(contextMenu.item); setContextMenu(null); }} className="w-full px-3.5 py-2.5 text-left text-xs font-bold rounded-xl hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2.5" style={{ color: 'var(--text-primary)' }}>
+                <Download className="w-4 h-4" /> Download
               </button>
-              <button
-                onClick={() => {
-                  setFileToMove(contextMenu.item);
-                  setShowMoveDialog(true);
-                  setContextMenu(null);
-                }}
-                className="w-full px-3 py-2 text-left text-xs font-semibold rounded-lg hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2"
-                style={{ color: 'var(--text-primary)' }}
-              >
-                <FolderInput className="w-3.5 h-3.5" /> Move to...
+              <button onClick={() => { setFileToMove(contextMenu.item); setShowMoveDialog(true); setContextMenu(null); }} className="w-full px-3.5 py-2.5 text-left text-xs font-bold rounded-xl hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2.5" style={{ color: 'var(--text-primary)' }}>
+                <FolderInput className="w-4 h-4" /> Move to...
               </button>
             </>
           )}
         </div>
       )}
 
-      {/* New Folder Dialog */}
+      {/* New Folder */}
       {showNewFolderDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(10,10,12,0.6)' }} onClick={() => { setShowNewFolderDialog(false); setNewFolderName(''); }}>
-          <div className="surface-card rounded-3xl p-6 max-w-md w-full mx-4 shadow-2xl shadow-black/40" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-xl font-extrabold mb-5" style={{ color: 'var(--text-primary)' }}>Create Folder</h3>
-            <input
-              type="text"
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              placeholder="Folder name"
-              className="input mb-5 rounded-xl py-3"
-              autoFocus
-            />
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(10,10,17,0.6)' }} onClick={() => { setShowNewFolderDialog(false); setNewFolderName(''); }}>
+          <div className="surface-card rounded-[28px] p-8 max-w-md w-full mx-4 shadow-2xl shadow-black/30" onClick={e => e.stopPropagation()}>
+            <h3 className="h2 mb-6" style={{ color: 'var(--text-primary)' }}>New Folder</h3>
+            <input type="text" value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="Folder name" className="input rounded-2xl py-3.5 mb-6 text-base" autoFocus />
             <div className="flex gap-3">
-              <button onClick={() => { setShowNewFolderDialog(false); setNewFolderName(''); }} className="btn btn-secondary flex-1 rounded-xl py-2.5 text-sm font-semibold">Cancel</button>
-              <button onClick={handleCreateFolder} className="btn btn-primary flex-1 rounded-xl py-2.5 text-sm font-semibold shadow-md shadow-[var(--accent-muted)]">Create</button>
+              <button onClick={() => { setShowNewFolderDialog(false); setNewFolderName(''); }} className="btn btn-secondary flex-1 rounded-2xl py-3 text-sm font-extrabold">Cancel</button>
+              <button onClick={handleCreateFolder} className="btn btn-primary flex-1 rounded-2xl py-3 text-sm font-extrabold shadow-lg shadow-[var(--accent-glow)]">Create</button>
             </div>
           </div>
         </div>
@@ -448,28 +318,17 @@ export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath
 
       {/* Move Dialog */}
       {showMoveDialog && fileToMove && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(10,10,12,0.6)' }} onClick={() => { setShowMoveDialog(false); setFileToMove(null); }}>
-          <div className="surface-card rounded-3xl p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto shadow-2xl shadow-black/40" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-extrabold mb-4" style={{ color: 'var(--text-primary)' }}>Move "{fileToMove.name}"</h3>
-            <div className="space-y-1 mb-5">
-              <button onClick={() => handleMove('/')} className="w-full px-3 py-2.5 text-left text-sm font-semibold rounded-xl hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2.5" style={{ color: 'var(--text-primary)' }}>
-                <Folder className="w-4 h-4" style={{ color: 'var(--accent)' }} /> Root (/)
-              </button>
-              {files.filter(f => f.type === 'folder').map((folder) => {
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(10,10,17,0.6)' }} onClick={() => { setShowMoveDialog(false); setFileToMove(null); }}>
+          <div className="surface-card rounded-[28px] p-6 max-w-md w-full mx-4 max-h-[85vh] overflow-y-auto shadow-2xl shadow-black/30" onClick={e => e.stopPropagation()}>
+            <h3 className="h3 mb-5" style={{ color: 'var(--text-primary)' }}>Move "{fileToMove.name}"</h3>
+            <div className="space-y-1 mb-6">
+              <button onClick={() => handleMove('/')} className="w-full px-4 py-3 text-left text-sm font-bold rounded-2xl hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-3" style={{ color: 'var(--text-primary)' }}><Folder className="w-4 h-4" style={{ color: 'var(--accent)' }} /> Root (/)</button>
+              {files.filter(f => f.type === 'folder').map(folder => {
                 const folderPath = folder.path === '/' ? `/${folder.name}` : `${folder.path}/${folder.name}`;
-                return (
-                  <button
-                    key={folder.id}
-                    onClick={() => handleMove(folderPath)}
-                    className="w-full px-3 py-2.5 text-left text-sm font-semibold rounded-xl hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2.5"
-                    style={{ color: 'var(--text-primary)' }}
-                  >
-                    <Folder className="w-4 h-4" style={{ color: 'var(--accent)' }} /> {folderPath}
-                  </button>
-                );
+                return <button key={folder.id} onClick={() => handleMove(folderPath)} className="w-full px-4 py-3 text-left text-sm font-bold rounded-2xl hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-3" style={{ color: 'var(--text-primary)' }}><Folder className="w-4 h-4" style={{ color: 'var(--accent)' }} /> {folderPath}</button>;
               })}
             </div>
-            <button onClick={() => { setShowMoveDialog(false); setFileToMove(null); }} className="btn btn-secondary w-full rounded-xl py-2.5 text-sm font-semibold">Cancel</button>
+            <button onClick={() => { setShowMoveDialog(false); setFileToMove(null); }} className="btn btn-secondary w-full rounded-2xl py-3 text-sm font-extrabold">Cancel</button>
           </div>
         </div>
       )}

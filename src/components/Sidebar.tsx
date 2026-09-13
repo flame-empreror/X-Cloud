@@ -24,7 +24,7 @@ export default function Sidebar({ activeTab, onTabChange, onFolderClick, isOpen,
   };
 
   return (
-    <div className="h-full flex flex-col" style={{ background: 'var(--bg-surface)', width: '280px', borderRight: '1px solid var(--border-default)' }}>
+    <div className="h-full flex flex-col" style={{ background: 'var(--bg-surface)', width: 300, borderRight: '1px solid var(--border-subtle)' }}>
       {/* Header */}
       <div className="p-5 pb-4">
         <div className="flex items-center justify-between mb-5">

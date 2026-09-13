@@ -20,23 +20,15 @@ export default function ChannelSelect({ onChatSelect }: ChannelSelectProps) {
     setLoading(true); setError('');
     try {
       const dialogs = await mtprotoService.getDialogs();
-      const groups: TelegramChat[] = dialogs
-        .filter((d: any) => d.type === 'group' || d.type === 'channel')
-        .map((d: any) => ({
-          id: d.id,
-          title: d.title || 'Unknown',
-          type: d.type as 'channel' | 'group',
-          inputPeer: d.peer,
-        }));
+      const groups: TelegramChat[] = dialogs.filter((d: any) => d.type === 'group' || d.type === 'channel').map((d: any) => ({ id: d.id, title: d.title || 'Unknown', type: d.type as 'channel' | 'group', inputPeer: d.peer }));
       setChats(groups);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load chats');
-    } finally { setLoading(false); }
+    } catch (err: any) { setError(err.message || 'Failed to load chats'); }
+    finally { setLoading(false); }
   };
 
   const handleSelect = (chat: TelegramChat) => {
     setSelectedId(chat.id);
-    setTimeout(() => onChatSelect(chat), 250);
+    setTimeout(() => onChatSelect(chat), 200);
   };
 
   const getChatIcon = (type: string) => {
@@ -48,83 +40,57 @@ export default function ChannelSelect({ onChatSelect }: ChannelSelectProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'var(--bg-base)' }}>
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: 'easeOut' }}
-        className="max-w-xl w-full"
-      >
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold tracking-tight mb-2" style={{ color: 'var(--text-primary)' }}>Select Storage</h1>
+    <div className="min-h-screen flex items-center justify-center px-6" style={{ background: 'var(--bg-base)' }}>
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.22,1,0.36,1] }} className="w-full max-w-xl">
+        <div className="text-center mb-10">
+          <h1 className="text-4xl font-extrabold tracking-tight mb-3" style={{ color: 'var(--text-primary)' }}>Select Storage</h1>
           <p className="text-base font-medium" style={{ color: 'var(--text-muted)' }}>Choose a Telegram channel or group</p>
         </div>
-
-        <div className="surface-card rounded-[24px] overflow-hidden shadow-2xl shadow-black/30">
+        <div className="surface-card rounded-[28px] overflow-hidden shadow-2xl shadow-black/30">
           {loading && (
-            <div className="flex flex-col items-center justify-center py-16">
-              <Loader2 className="w-7 h-7 animate-spin mb-4" style={{ color: 'var(--accent)' }} />
+            <div className="flex flex-col items-center justify-center py-20">
+              <Loader2 className="w-8 h-8 animate-spin mb-4" style={{ color: 'var(--accent)' }} />
               <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Loading your channels...</p>
             </div>
           )}
-
           {error && (
             <div className="p-8 text-center">
-              <div className="p-4 rounded-xl mb-5 border border-[rgba(244,63,94,0.15)]" style={{ background: 'rgba(244,63,94,0.05)' }}>
-                <p className="text-sm font-medium" style={{ color: 'var(--error)' }}>{error}</p>
+              <div className="p-4 rounded-2xl mb-5 border border-[rgba(244,63,94,0.15)]" style={{ background: 'rgba(244,63,94,0.05)' }}>
+                <p className="text-sm font-bold" style={{ color: 'var(--error)' }}>{error}</p>
               </div>
-              <button onClick={loadChats} className="btn btn-secondary rounded-xl px-6">Try again</button>
+              <button onClick={loadChats} className="btn btn-secondary rounded-2xl px-6 py-3 text-sm font-extrabold">Try Again</button>
             </div>
           )}
-
           {!loading && !error && (
-            <div className="max-h-[440px] overflow-y-auto">
+            <div className="max-h-[460px] overflow-y-auto p-3">
               {chats.length === 0 ? (
                 <div className="text-center py-16 px-6">
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'var(--bg-elevated)' }}>
-                    <Hash className="w-6 h-6" style={{ color: 'var(--text-muted)' }} />
+                  <div className="w-16 h-16 rounded-[24px] flex items-center justify-center mx-auto mb-5" style={{ background: 'var(--bg-elevated)' }}>
+                    <Hash className="w-7 h-7" style={{ color: 'var(--text-muted)' }} />
                   </div>
-                  <p className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>No channels found</p>
-                  <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Join or create a channel, then refresh</p>
+                  <p className="font-extrabold mb-2" style={{ color: 'var(--text-primary)' }}>No channels found</p>
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Join or create a Telegram channel first</p>
                 </div>
               ) : (
-                <div className="p-3">
-                  {chats.map((chat, index) => (
+                <div className="space-y-1">
+                  {chats.map((chat, i) => (
                     <motion.button
                       key={chat.id}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.25, delay: index * 0.04 }}
+                      transition={{ duration: 0.25, delay: i * 0.04 }}
                       onClick={() => handleSelect(chat)}
                       disabled={selectedId === chat.id}
-                      className={`w-full rounded-2xl p-4 flex items-center gap-4 text-left transition-all mb-1 ${
-                        selectedId === chat.id
-                          ? 'bg-[var(--accent-muted)] border border-[var(--accent)]/30'
-                          : 'hover:bg-[var(--bg-hover)] border border-transparent'
-                      }`}
+                      className={`w-full rounded-[20px] p-4 flex items-center gap-4 text-left transition-all duration-200 ${selectedId === chat.id ? 'bg-[var(--accent-glow)] border border-[rgba(99,102,241,0.2)]' : 'hover:bg-[var(--bg-hover)] border border-transparent'}`}
                     >
-                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${
-                        selectedId === chat.id ? 'bg-[var(--accent)]' : 'bg-[var(--bg-elevated)]'
-                      }`}>
-                        {selectedId === chat.id ? (
-                          <Check className="w-5 h-5 text-white" />
-                        ) : (
-                          <div style={{ color: selectedId === chat.id ? 'white' : 'var(--text-muted)' }}>
-                            {getChatIcon(chat.type)}
-                          </div>
-                        )}
+                      <div className={`w-12 h-12 rounded-[18px] flex items-center justify-center flex-shrink-0 transition-all duration-200 ${selectedId === chat.id ? 'bg-[var(--accent)]' : 'bg-[var(--bg-elevated)]'}`}>
+                        {selectedId === chat.id ? <Check className="w-5 h-5 text-white" /> : <div style={{ color: 'var(--text-muted)' }}>{getChatIcon(chat.type)}</div>}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate text-sm" style={{ color: 'var(--text-primary)' }}>
-                          {chat.title}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="badge badge-neutral capitalize text-[10px]">{chat.type}</span>
-                        </div>
+                        <p className="font-extrabold truncate text-sm" style={{ color: 'var(--text-primary)' }}>{chat.title}</p>
+                        <span className="badge badge-neutral capitalize text-[10px] mt-1.5 inline-block">{chat.type}</span>
                       </div>
-                      <svg className="w-4 h-4 flex-shrink-0 transition-colors" style={{ color: selectedId === chat.id ? 'var(--accent)' : 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                      </svg>
+                      <svg className="w-4 h-4 flex-shrink-0" style={{ color: selectedId === chat.id ? 'var(--accent)' : 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                     </motion.button>
                   ))}
                 </div>
@@ -132,10 +98,6 @@ export default function ChannelSelect({ onChatSelect }: ChannelSelectProps) {
             </div>
           )}
         </div>
-
-        <p className="text-center text-xs font-medium mt-6" style={{ color: 'var(--text-muted)' }}>
-          Files will be stored in your selected channel
-        </p>
       </motion.div>
     </div>
   );
