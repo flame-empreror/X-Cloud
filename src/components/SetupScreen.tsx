@@ -17,7 +17,7 @@ export default function SetupScreen() {
         animate={{ opacity: 1, y: 0 }}
         className="max-w-2xl w-full mx-4"
       >
-        <div className="glass rounded-2xl p-8">
+        <div className="surface-card rounded-[28px] p-8 md:p-10 shadow-2xl shadow-black/30">
           <div className="text-center mb-8">
             <div className="w-14 h-14 mx-auto mb-5 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent-muted)' }}>
               <AlertCircle className="w-6 h-6" style={{ color: 'var(--accent)' }} />
@@ -33,7 +33,7 @@ export default function SetupScreen() {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: index * 0.08 }}
-                className="card p-4 flex items-start gap-3"
+                className="surface-card p-4 rounded-2xl flex items-start gap-3 border border-[var(--border-default)]"
               >
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--accent)', color: 'var(--bg-base)' }}>
                   <span className="text-sm font-bold">{step.num}</span>
@@ -53,7 +53,7 @@ export default function SetupScreen() {
             ))}
           </div>
 
-          <div className="card p-4 mb-4" style={{ borderColor: 'rgba(56, 189, 248, 0.2)' }}>
+          <div className="surface-card p-4 rounded-2xl mb-4 border border-[rgba(56,189,248,0.15)]" style={{ background: 'rgba(56,189,248,0.05)' }}>
             <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
               <strong>Environment Variables:</strong><br />
               <code className="px-1.5 py-0.5 rounded text-[11px] font-mono" style={{ background: 'var(--bg-elevated)', color: 'var(--success)' }}>VITE_TELEGRAM_API_ID</code><br />
