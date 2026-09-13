@@ -35,6 +35,7 @@ export default function App() {
               id: user.id,
               first_name: user.firstName || user.username || 'User',
               username: user.username,
+              photo_url: user.photo_url,
             });
           }
           const savedChat = localStorage.getItem('telecloud_selected_chat');
@@ -62,6 +63,7 @@ export default function App() {
           id: user.id,
           first_name: user.firstName || user.username || 'User',
           username: user.username,
+          photo_url: user.photo_url,
         });
       }
     } catch (error) {

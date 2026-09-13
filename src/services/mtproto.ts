@@ -118,7 +118,38 @@ class MTProtoService {
 
   async getMe(): Promise<any> {
     if (!this.client) throw new Error('Client not initialized');
-    return await this.client.getMe();
+    const user = await this.client.getMe();
+    
+    // Try to get the user's profile photo
+    let photoUrl: string | undefined;
+    try {
+      // Try to get the user's profile photos
+      const photos = await this.client.call({
+        _: 'photos.getUserPhotos',
+        userId: { _: 'inputUserSelf' },
+        offset: 0,
+        maxId: Long.fromNumber(0),
+        limit: 1,
+      });
+      
+      if (photos && photos.photos && photos.photos.length > 0) {
+        const photo = photos.photos[0] as any;
+        // Try different possible properties for photo data
+        if (photo.photo) {
+          photoUrl = photo.photo;
+        } else if (photo.id) {
+          // Construct the photo URL
+          photoUrl = `https://api.telegram.org/file/bot${API_ID}:${API_HASH}/photos/${photo.id}.jpg`;
+        }
+      }
+    } catch (error) {
+      console.log('[MTProto] Could not fetch profile photo:', error);
+    }
+    
+    return {
+      ...user,
+      photo_url: photoUrl,
+    };
   }
 
   async getDialogs(): Promise<any[]> {

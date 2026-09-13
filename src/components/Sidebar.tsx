@@ -38,9 +38,17 @@ export function Sidebar() {
 
       <div className="p-4 border-t border-default">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-accent-muted flex items-center justify-center text-accent font-semibold">
-            {user?.first_name?.charAt(0)?.toUpperCase() || 'U'}
-          </div>
+          {user?.photo_url ? (
+            <img 
+              src={user.photo_url} 
+              alt={user.first_name || 'User'}
+              className="w-10 h-10 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-accent-muted flex items-center justify-center text-accent font-semibold">
+              {user?.first_name?.charAt(0)?.toUpperCase() || 'U'}
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-primary truncate">
               {user?.first_name || 'User'}
