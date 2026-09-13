@@ -128,45 +128,76 @@ class MTProtoService {
     console.log('[MTProto] Raw user data:', rawUser);
     console.log('[MTProto] Raw user keys:', Object.keys(rawUser || {}));
     
-    // Try to get the user's profile photo using the client's downloadProfilePhoto method
+    // Try to get the user's profile photo
     let photoUrl: string | undefined;
     try {
-      // Try to use the client's method to get profile photo
-      if (typeof (this.client as any).downloadProfilePhoto === 'function') {
-        const photoData = await (this.client as any).downloadProfilePhoto({
-          _: 'inputUserSelf',
-        });
-        if (photoData) {
-          // Convert to blob URL
-          const blob = new Blob([photoData], { type: 'image/jpeg' });
-          photoUrl = URL.createObjectURL(blob);
-          console.log('[MTProto] Profile photo URL from downloadProfilePhoto:', photoUrl);
-        }
-      } else {
-        // Fallback: try to get the photo via photos.getUserPhotos
-        const photos = await this.client.call({
-          _: 'photos.getUserPhotos',
-          userId: { _: 'inputUserSelf' },
-          offset: 0,
-          maxId: Long.fromNumber(0),
-          limit: 1,
-        });
+      // Try to get the photo via photos.getUserPhotos
+      const photos = await this.client.call({
+        _: 'photos.getUserPhotos',
+        userId: { _: 'inputUserSelf' },
+        offset: 0,
+        maxId: Long.fromNumber(0),
+        limit: 1,
+      });
+      
+      console.log('[MTProto] Photos response:', photos);
+      
+      if (photos && photos.photos && photos.photos.length > 0) {
+        const photo = photos.photos[0] as any;
+        console.log('[MTProto] Photo object:', photo);
+        console.log('[MTProto] Photo keys:', Object.keys(photo));
         
-        console.log('[MTProto] Photos response:', photos);
-        
-        if (photos && photos.photos && photos.photos.length > 0) {
-          const photo = photos.photos[0] as any;
-          console.log('[MTProto] Photo object:', photo);
+        // The photo object has a 'sizes' array with different sizes
+        if (photo.sizes && photo.sizes.length > 0) {
+          console.log('[MTProto] Photo sizes array length:', photo.sizes.length);
           
-          // Try to download the photo using the client's downloadMedia method
-          if (typeof (this.client as any).downloadMedia === 'function') {
-            const photoData = await (this.client as any).downloadMedia(photo);
-            if (photoData) {
-              const blob = new Blob([photoData], { type: 'image/jpeg' });
-              photoUrl = URL.createObjectURL(blob);
-              console.log('[MTProto] Profile photo URL from downloadMedia:', photoUrl);
+          // Find the smallest size (usually the first one or the one with smallest dimensions)
+          let photoSize = photo.sizes[0];
+          for (const size of photo.sizes) {
+            // Look for the smallest size by checking dimensions
+            if (size.w && size.h) {
+              if (!photoSize.w || !photoSize.h || (size.w * size.h < photoSize.w * photoSize.h)) {
+                photoSize = size;
+              }
             }
           }
+          
+          console.log('[MTProto] Selected photo size:', photoSize);
+          console.log('[MTProto] Selected size keys:', Object.keys(photoSize));
+          
+          // Try to download the selected photo size using its location
+          if (photoSize.location) {
+            console.log('[MTProto] Photo size location:', photoSize.location);
+            console.log('[MTProto] Photo size location type:', typeof photoSize.location);
+            
+            // Try to download using the location
+            if (typeof (this.client as any).downloadMedia === 'function') {
+              try {
+                console.log('[MTProto] Attempting to download photo using location...');
+                const photoData = await (this.client as any).downloadMedia(photoSize.location);
+                
+                if (photoData) {
+                  console.log('[MTProto] Photo data received, type:', typeof photoData);
+                  console.log('[MTProto] Photo data length:', photoData.length || photoData.byteLength || 'N/A');
+                  
+                  // Convert to blob
+                  const blob = new Blob([photoData], { type: 'image/jpeg' });
+                  photoUrl = URL.createObjectURL(blob);
+                  console.log('[MTProto] Profile photo URL created:', photoUrl);
+                } else {
+                  console.log('[MTProto] downloadMedia returned null or undefined');
+                }
+              } catch (error) {
+                console.error('[MTProto] Error downloading photo:', error);
+              }
+            } else {
+              console.log('[MTProto] downloadMedia method not available on client');
+            }
+          } else {
+            console.log('[MTProto] Photo size has no location property');
+          }
+        } else {
+          console.log('[MTProto] Photo has no sizes array');
         }
       }
     } catch (error) {
