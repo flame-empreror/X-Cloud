@@ -59,9 +59,8 @@ body {
 }
 
 .btn:focus-visible {
-  ring: 2px solid var(--accent);
-  ring-offset: 2px;
-  ring-offset: var(--bg-base);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .btn:disabled {
