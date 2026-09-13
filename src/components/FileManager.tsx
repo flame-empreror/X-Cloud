@@ -6,6 +6,8 @@ import { formatFileSize, getFileIconComponent } from '../utils/fileUtils';
 import { useAppStore } from '../store/index';
 
 interface FileManagerProps {
+  sidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
   chat: TelegramChat;
   files: FileItem[];
   setFiles: (files: FileItem[]) => void;
@@ -14,7 +16,7 @@ interface FileManagerProps {
   setCurrentPath: (path: string) => void;
 }
 
-export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath }: FileManagerProps) {
+export function FileManager({ chat, files, setFiles, currentPath, setCurrentPath, sidebarOpen, onToggleSidebar }: FileManagerProps) {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
