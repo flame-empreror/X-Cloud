@@ -128,32 +128,45 @@ class MTProtoService {
     console.log('[MTProto] Raw user data:', rawUser);
     console.log('[MTProto] Raw user keys:', Object.keys(rawUser || {}));
     
-    // Try to get the user's profile photo
+    // Try to get the user's profile photo using the client's downloadProfilePhoto method
     let photoUrl: string | undefined;
     try {
-      // Try to get the user's profile photos
-      const photos = await this.client.call({
-        _: 'photos.getUserPhotos',
-        userId: { _: 'inputUserSelf' },
-        offset: 0,
-        maxId: Long.fromNumber(0),
-        limit: 1,
-      });
-      
-      console.log('[MTProto] Photos response:', photos);
-      
-      if (photos && photos.photos && photos.photos.length > 0) {
-        const photo = photos.photos[0] as any;
-        console.log('[MTProto] Photo object:', photo);
-        console.log('[MTProto] Photo keys:', Object.keys(photo || {}));
-        // Try different possible properties for photo data
-        if (photo.photo) {
-          photoUrl = photo.photo;
-          console.log('[MTProto] Photo URL from photo.photo:', photoUrl);
-        } else if (photo.id) {
-          // Construct the photo URL
-          photoUrl = `https://api.telegram.org/file/bot${API_ID}:${API_HASH}/photos/${photo.id}.jpg`;
-          console.log('[MTProto] Constructed photo URL:', photoUrl);
+      // Try to use the client's method to get profile photo
+      if (typeof (this.client as any).downloadProfilePhoto === 'function') {
+        const photoData = await (this.client as any).downloadProfilePhoto({
+          _: 'inputUserSelf',
+        });
+        if (photoData) {
+          // Convert to blob URL
+          const blob = new Blob([photoData], { type: 'image/jpeg' });
+          photoUrl = URL.createObjectURL(blob);
+          console.log('[MTProto] Profile photo URL from downloadProfilePhoto:', photoUrl);
+        }
+      } else {
+        // Fallback: try to get the photo via photos.getUserPhotos
+        const photos = await this.client.call({
+          _: 'photos.getUserPhotos',
+          userId: { _: 'inputUserSelf' },
+          offset: 0,
+          maxId: Long.fromNumber(0),
+          limit: 1,
+        });
+        
+        console.log('[MTProto] Photos response:', photos);
+        
+        if (photos && photos.photos && photos.photos.length > 0) {
+          const photo = photos.photos[0] as any;
+          console.log('[MTProto] Photo object:', photo);
+          
+          // Try to download the photo using the client's downloadMedia method
+          if (typeof (this.client as any).downloadMedia === 'function') {
+            const photoData = await (this.client as any).downloadMedia(photo);
+            if (photoData) {
+              const blob = new Blob([photoData], { type: 'image/jpeg' });
+              photoUrl = URL.createObjectURL(blob);
+              console.log('[MTProto] Profile photo URL from downloadMedia:', photoUrl);
+            }
+          }
         }
       }
     } catch (error) {
