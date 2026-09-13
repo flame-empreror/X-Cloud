@@ -95,7 +95,7 @@ export function TransfersPanel() {
                             <div className="flex items-center justify-between text-[11px] font-extrabold mb-1.5">
                               <span style={{ color: 'var(--text-secondary)' }}>{Math.round(transfer.progress)}%</span>
                             </div>
-                            <div className="progress-bar"><motion.div initial={{ width: 0 }} animate={{ width: `${transfer.progress}%` }} transition={{ duration: 0.2 }} className="progress-bar-fill" /></motion.div>
+                            <div className="progress-bar"><motion.div initial={{ width: 0 }} animate={{ width: `${transfer.progress}%` }} transition={{ duration: 0.2 }} className="progress-bar-fill" /></div>
                           </>
                         ) : (
                           <span className="text-sm font-extrabold" style={{ color: statusColor }}>{transfer.status === 'completed' ? 'Done' : transfer.status}</span>
