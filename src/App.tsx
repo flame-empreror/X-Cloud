@@ -6,6 +6,7 @@ import ChannelSelect from './components/ChannelSelect';
 import FileManager from './components/FileManager';
 import { FileItem, TelegramChat } from './types';
 import { Long } from '@mtcute/core';
+import { useAppStore } from './store';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -69,9 +70,28 @@ export default function App() {
     init();
   }, []);
 
-  const handleLoginSuccess = () => {
+  const handleLoginSuccess = async () => {
     console.log('[App] Login successful');
     setIsAuthenticated(true);
+    
+    // Fetch and set user profile photo
+    try {
+      const me = await mtprotoService.getMe();
+      const photoUrl = await mtprotoService.getUserPhotoUrl();
+      
+      if (me) {
+        const userData = {
+          id: me.id,
+          first_name: me.firstName || '',
+          last_name: me.lastName,
+          username: me.username,
+          photoUrl: photoUrl || undefined,
+        };
+        useAppStore.getState().setUser(userData);
+      }
+    } catch (error) {
+      console.error('[App] Failed to fetch user profile:', error);
+    }
   };
 
   const handleChatSelect = (chat: TelegramChat) => {

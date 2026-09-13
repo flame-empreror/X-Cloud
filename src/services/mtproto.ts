@@ -121,6 +121,27 @@ class MTProtoService {
     return await this.client.getMe();
   }
 
+  async getUserPhotoUrl(): Promise<string | null> {
+    if (!this.client) throw new Error('Client not initialized');
+
+    try {
+      // Get the current user's profile photos
+      const photos = await this.client.getProfilePhotos('me', { limit: 1 });
+      
+      if (photos && photos.items && photos.items.length > 0) {
+        const photo = photos.items[0];
+        // Download the photo as a buffer and convert to blob URL
+        const buffer = await this.client.downloadAsBuffer(photo, {});
+        const blob = new Blob([buffer], { type: 'image/jpeg' });
+        return URL.createObjectURL(blob);
+      }
+      return null;
+    } catch (error: any) {
+      console.error('[MTProto] Failed to get user photo:', error.message);
+      return null;
+    }
+  }
+
   async getDialogs(): Promise<any[]> {
     if (!this.client) throw new Error('Client not initialized');
 

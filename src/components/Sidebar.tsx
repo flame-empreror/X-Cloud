@@ -119,15 +119,26 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
       {/* User & Logout */}
       <div className="p-5 border-t border-white/10">
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl blur-md opacity-50" />
-            <div className="relative w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg">
-              {user?.first_name?.charAt(0)?.toUpperCase() || 'U'}
+          {user?.photoUrl ? (
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl blur-md opacity-50" />
+              <img 
+                src={user.photoUrl} 
+                alt={user.first_name || 'User'}
+                className="relative w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl object-cover shadow-lg"
+              />
             </div>
-          </div>
+          ) : (
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl blur-md opacity-50" />
+              <div className="relative w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg">
+                {user?.first_name?.charAt(0)?.toUpperCase() || 'U'}
+              </div>
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <p className="text-white text-sm font-semibold truncate">{user?.first_name || 'User'}</p>
-            <p className="text-gray-400 text-xs">Connected</p>
+            <p className="text-gray-400 text-xs">@{user?.username || 'telegram'}</p>
           </div>
           <motion.button
             whileHover={{ scale: 1.1 }}
