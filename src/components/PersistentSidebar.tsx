@@ -252,7 +252,9 @@ export default function PersistentSidebar({ activeTab, onTabChange, onFolderClic
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{user?.first_name || 'User'}</p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Connected</p>
+            {user?.username && (
+              <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>@{user.username}</p>
+            )}
           </div>
           <motion.button
             whileHover={{ scale: 1.1 }}

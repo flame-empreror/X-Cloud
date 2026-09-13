@@ -28,6 +28,15 @@ export default function App() {
         await mtprotoService.initialize();
         if (mtprotoService.isLoggedIn()) {
           setAuthenticated(true);
+          // Fetch and store user information
+          const user = await mtprotoService.getMe();
+          if (user) {
+            useAppStore.getState().setUser({
+              id: user.id,
+              first_name: user.firstName || user.username || 'User',
+              username: user.username,
+            });
+          }
           const savedChat = localStorage.getItem('telecloud_selected_chat');
           if (savedChat) {
             try {
@@ -43,7 +52,22 @@ export default function App() {
     init();
   }, []);
 
-  const handleLoginSuccess = () => setAuthenticated(true);
+  const handleLoginSuccess = async () => {
+    setAuthenticated(true);
+    // Fetch and store user information after login
+    try {
+      const user = await mtprotoService.getMe();
+      if (user) {
+        useAppStore.getState().setUser({
+          id: user.id,
+          first_name: user.firstName || user.username || 'User',
+          username: user.username,
+        });
+      }
+    } catch (error) {
+      console.error('[App] Failed to fetch user info after login:', error);
+    }
+  };
 
   const handleChatSelect = (chat: TelegramChat) => {
     // Convert TelegramChat to TelegramChannel format for the store
